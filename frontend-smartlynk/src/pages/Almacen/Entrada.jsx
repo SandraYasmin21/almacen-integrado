@@ -1,0 +1,264 @@
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import Barcode from "react-barcode";
+import { toast } from "sonner";
+import { PremiumCard, PremiumModal } from "../../components/ui/premium";
+import { SelectPremium } from "../../components/ui/SelectPremium";
+
+const API = import.meta.env.VITE_API_URL ?? "";
+const authHeaders = () => ({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${localStorage.getItem("smartlynk_token") ?? ""}`,
+});
+
+async function readJson(response) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success === false) {
+    throw new Error(data.message || data.mensaje || "No se pudo completar la operación");
+  }
+  return data;
+}
+
+function SkusModal({ result, onClose }) {
+  const tipo = result?.articulo?.tipo_articulo ?? "herramienta";
+  const canPrint = tipo === "venta" || tipo === "mixto";
+
+  return (
+    <PremiumModal className="max-w-3xl p-0" onBackdropClick={onClose}>
+        <div className="flex items-start justify-between border-b border-slate-100 p-5">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Entrada registrada</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Se generaron {result?.skus?.length ?? 0} SKU para {result?.articulo?.nombre}.
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            Cerrar
+          </button>
+        </div>
+
+        <div className="max-h-[55vh] overflow-y-auto p-5">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {(result?.skus ?? []).map((sku) => (
+              <div key={sku} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{sku}</p>
+                <div className="rounded-lg bg-white p-2">
+                  <Barcode value={sku} height={46} width={1.25} fontSize={12} margin={4} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end">
+          {canPrint && (
+            <button
+              onClick={() => window.print()}
+              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              Imprimir SKU para venta
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200"
+          >
+            Finalizar
+          </button>
+        </div>
+    </PremiumModal>
+  );
+}
+
+export default function Entrada() {
+  const navigate = useNavigate();
+  const [articulos, setArticulos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [form, setForm] = useState({
+    articulo_id: "",
+    modelo: "",
+    tipo_articulo: "herramienta",
+    proveedor_id: "",
+    cantidad: 1,
+    ubicacion: "",
+    notas: "",
+  });
+
+  const articuloSeleccionado = useMemo(
+    () => articulos.find((articulo) => String(articulo.id) === String(form.articulo_id)),
+    [articulos, form.articulo_id]
+  );
+
+  useEffect(() => {
+    const cargar = async () => {
+      try {
+        const [rArt, rProv] = await Promise.all([
+          fetch(`${API}/api/almacen/articulos`, { headers: authHeaders() }),
+          fetch(`${API}/api/proveedores`, { headers: authHeaders() }),
+        ]);
+        const [dArt, dProv] = await Promise.all([readJson(rArt), rProv.json()]);
+        setArticulos(dArt.data ?? dArt ?? []);
+        setProveedores(dProv.data ?? dProv ?? []);
+      } catch (error) {
+        toast.error(error.message || "Error al cargar catálogos");
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargar();
+  }, []);
+
+  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleArticuloChange = (id) => {
+    const articulo = articulos.find((item) => String(item.id) === String(id));
+    setForm((prev) => ({
+      ...prev,
+      articulo_id: id,
+      modelo: articulo?.modelo ?? "",
+      tipo_articulo: articulo?.tipo_articulo ?? "herramienta",
+    }));
+  };
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!form.articulo_id) return toast.error("Selecciona un artículo");
+    if (!String(form.modelo || articuloSeleccionado?.modelo || "").trim()) return toast.error("Ingresa el modelo del artículo");
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${API}/api/almacen/entrada`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(form),
+      });
+      const data = await readJson(response);
+      toast.success(data.message || "Entrada registrada correctamente");
+      setResult(data.data);
+    } catch (error) {
+      toast.error(error.message || "Error al registrar entrada");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="w-full space-y-6">
+        <PremiumCard interactive={false}>
+        <form onSubmit={submit} className="p-6">
+          <div className="grid gap-5">
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                Artículo <span className="text-red-500">*</span>
+              </label>
+              <SelectPremium 
+                value={String(form.articulo_id)} 
+                onChange={handleArticuloChange} 
+                placeholder={cargando ? "Cargando artículos..." : "Seleccionar artículo..."}
+                options={articulos.map((articulo) => ({ value: String(articulo.id), label: `${articulo.nombre} ${articulo.modelo ? `- ${articulo.modelo}` : ""}` }))}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Modelo <span className="text-red-500">*</span>
+                </label>
+                <input
+                  value={form.modelo}
+                  onChange={(event) => set("modelo", event.target.value)}
+                  placeholder="Ej: TAL-20V-MAX"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Clasificación <span className="text-red-500">*</span>
+                </label>
+                <SelectPremium 
+                  value={form.tipo_articulo} 
+                  onChange={(value) => set("tipo_articulo", value)}
+                  options={[
+                    { value: "herramienta", label: "Herramienta" },
+                    { value: "venta", label: "Venta" },
+                    { value: "mixto", label: "Mixto" }
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Proveedor</label>
+              <SelectPremium 
+                value={form.proveedor_id || "ninguno"} 
+                onChange={(value) => set("proveedor_id", value === "ninguno" ? "" : value)} 
+                placeholder="Sin proveedor / No aplica"
+                options={[
+                  { value: "ninguno", label: "Sin proveedor / No aplica" },
+                  ...proveedores.map((proveedor) => ({ value: String(proveedor.id), label: proveedor.nombre_empresa }))
+                ]}
+              />
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Cantidad <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.cantidad}
+                  onChange={(event) => set("cantidad", event.target.value)}
+                  required
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Ubicación</label>
+                <input
+                  type="text"
+                  value={form.ubicacion}
+                  onChange={(event) => set("ubicacion", event.target.value)}
+                  placeholder="Ej: Estante A-3"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Notas (opcional)</label>
+              <textarea
+                rows={3}
+                value={form.notas}
+                onChange={(event) => set("notas", event.target.value)}
+                placeholder="Observaciones, número de factura, etc."
+                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Link to="/almacen" className="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-200">
+                Cancelar
+              </Link>
+              <button
+                type="submit"
+                disabled={loading || cargando}
+                className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+              >
+                {loading ? "Registrando..." : "Registrar Entrada"}
+              </button>
+            </div>
+          </div>
+        </form>
+        </PremiumCard>
+      </div>
+
+      {result && <SkusModal result={result} onClose={() => navigate("/almacen")} />}
+    </>
+  );
+}

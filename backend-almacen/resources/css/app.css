@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.jsx';
+
+@theme {
+    --font-sans: 'Inter', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+
+    /* Paleta SmartLynk */
+    --color-smartlynk-navy:      #0d1b3e;
+    --color-smartlynk-blue:      #1d4ed8;
+    --color-smartlynk-light:     #3b82f6;
+    --color-smartlynk-dark:      #0a1628;
+    --color-smartlynk-accent:    #60a5fa;
+}
+
+/* Base: sin scroll en la pantalla de login */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #0a1628;
+}

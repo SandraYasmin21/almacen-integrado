@@ -1,0 +1,105 @@
+/* react-day-picker custom theme */
+.rdp,
+.rdp-root {
+  --rdp-accent-color: #3b82f6;
+  --rdp-accent-background-color: #eff6ff;
+  --rdp-range_middle-background-color: #dbeafe;
+  --rdp-range_middle-color: #1e293b;
+  --rdp-range_start-color: #ffffff;
+  --rdp-range_end-color: #ffffff;
+  --rdp-range_start-background: #2563eb;
+  --rdp-range_end-background: #2563eb;
+  --rdp-today-color: #2563eb;
+  --rdp-font-family: inherit;
+  margin: 0;
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.rdp-popup {
+  animation: rdpFadeIn 0.15s ease;
+}
+
+.rdp-button,
+.rdp-day,
+.rdp-day_button {
+  border-radius: 8px !important;
+  font-weight: 500;
+  transition:
+    background-color 0.1s ease,
+    color 0.1s ease,
+    transform 0.1s ease;
+}
+
+.rdp-button:hover:not([disabled]),
+.rdp-day_button:hover:not([disabled]) {
+  background-color: #eff6ff;
+}
+
+.rdp-caption_label,
+.rdp-month_caption {
+  color: #1e293b;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.rdp-head_cell,
+.rdp-weekday {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.rdp-nav_button {
+  border-radius: 10px !important;
+  color: #64748b;
+}
+
+.rdp-nav_button:hover {
+  background-color: #f1f5f9;
+  color: #2563eb;
+}
+
+.rdp-day_today:not(.rdp-day_selected) {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.rdp-day_selected,
+.rdp-day_selected:hover,
+.rdp-day_range_start,
+.rdp-day_range_end {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+.rdp-day_range_middle {
+  background-color: #dbeafe !important;
+  color: #1e293b !important;
+}
+
+.rdp-day_outside {
+  color: #94a3b8;
+  opacity: 0.75;
+}
+
+@keyframes rdpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rdp-popup,
+  .rdp-popup * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
