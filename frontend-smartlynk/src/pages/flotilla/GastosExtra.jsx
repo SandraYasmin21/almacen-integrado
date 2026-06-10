@@ -41,7 +41,6 @@ export default function GastosExtra() {
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const totalPages = 5; // simulated
     
     // Date Range
     const [date, setDate] = useState({
@@ -124,7 +123,7 @@ export default function GastosExtra() {
     };
 
     // Datos simulados
-    const gastos = [
+    const allGastos = [
         { id: 1, vehiculo: 'RAM Roja', fecha: '10/may/2026', tipo: 'Combustible', descripcion: 'carga completa de gasolina Magna', costo: 1200, observaciones: 'Estacion Pemex carr. norte km 12' },
         { id: 2, vehiculo: 'Ranger Blanca', fecha: '09/may/2026', tipo: 'Tenencia 2026', descripcion: 'pago anual de tenencia vehicular', costo: 2800, observaciones: 'Pago realizado en linea' },
         { id: 3, vehiculo: 'Silverado 834', fecha: '08/may/2026', tipo: 'Lavado completo', descripcion: 'interior y exterior con encerado', costo: 350, observaciones: 'Autolavado Express Matamoros' },
@@ -132,6 +131,16 @@ export default function GastosExtra() {
         { id: 5, vehiculo: 'Hilux Plata', fecha: '05/may/2026', tipo: 'Combustible', descripcion: 'carga parcial de gasolina', costo: 600, observaciones: '-' },
         { id: 6, vehiculo: 'NP300 Blanca', fecha: '03/may/2026', tipo: 'Verificacion vehicular', descripcion: 'Verificacion semestral obligatoria', costo: 400, observaciones: 'Verificentro Zona Norte' },
     ];
+
+    const totalGastos = allGastos.length;
+    const totalPages = Math.ceil(totalGastos / rowsPerPage) || 1;
+    const paginatedGastos = allGastos.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [rowsPerPage, totalPages, currentPage]);
 
     return (
         <div className="space-y-6">
@@ -211,7 +220,7 @@ export default function GastosExtra() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {gastos.map((item) => (
+                            {paginatedGastos.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                                     <td className="py-4 px-6 text-sm font-semibold text-slate-800">
                                         {item.vehiculo}
@@ -260,7 +269,7 @@ export default function GastosExtra() {
                             ]}
                         />
                     </div>
-                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando 1-{Math.min(rowsPerPage, 6)} de 6 registros</span>
+                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando {totalGastos === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, totalGastos)} de {totalGastos} registros</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-slate-600 font-medium">Página {currentPage} de {totalPages}</span>

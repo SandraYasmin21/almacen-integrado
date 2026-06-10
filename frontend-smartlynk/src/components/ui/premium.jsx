@@ -34,13 +34,15 @@ export function PremiumModal({ children, className = "", onBackdropClick }) {
 export function DataTableShell({ children, className = "" }) {
   return (
     <div className={cn("w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm", className)}>
-      {children}
+      <div className="overflow-x-auto">
+        {children}
+      </div>
     </div>
   );
 }
 
 export function dataTableClass(className = "") {
-  return cn("w-full table-fixed text-left text-sm text-slate-600", className);
+  return cn("w-full text-left text-sm text-slate-600 whitespace-nowrap", className);
 }
 
 export function ExportButtons({ onPdf, onExcel, pdfLabel = "Exportar PDF", excelLabel = "Exportar Excel", className = "" }) {

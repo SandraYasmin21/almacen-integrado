@@ -49,7 +49,7 @@ function PrestamoModal({ items, empleado, onClose, onConfirm, onRemove, onQuanti
                   type="number"
                   min={1}
                   value={item.cantidad}
-                  disabled={Boolean(item.sku)}
+                  disabled={item.tipo_codigo === "serie"}
                   onChange={(event) => onQuantityChange(item.key, event.target.value)}
                   className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-100"
                 />
@@ -146,18 +146,20 @@ export default function Salida() {
           {
             key: item.sku,
             sku: item.sku,
-            serie_id: item.serie_id,
+            tipo_codigo: item.tipo_codigo,
+            serie_id: item.tipo_codigo === "serie" ? item.serie_id : undefined,
             articulo_id: item.articulo_id,
             articulo: item.articulo,
             modelo: item.modelo,
             cantidad: 1,
           },
         ]);
-        toast.success("SKU agregado al préstamo");
+        toast.success(item.tipo_codigo === "serie" ? "SKU agregado al préstamo" : "Consumible agregado al préstamo");
       } else {
         setScannedItem(item);
         set("articulo_id", String(item.articulo_id));
-        toast.success("SKU listo para salida");
+        set("cantidad", item.tipo_codigo === "serie" ? 1 : form.cantidad);
+        toast.success(item.tipo_codigo === "serie" ? "SKU listo para salida" : "SKU maestro listo para salida por cantidad");
       }
     } catch (error) {
       toast.error(error.message || "SKU no encontrado");
@@ -200,7 +202,7 @@ export default function Salida() {
           codigo_sku: scannedItem?.sku,
           articulo_id: scannedItem ? undefined : form.articulo_id,
           empleado_id: form.empleado_id,
-          cantidad: scannedItem ? 1 : form.cantidad,
+          cantidad: scannedItem?.tipo_codigo === "serie" ? 1 : form.cantidad,
           notas: form.notas,
         }),
       });
@@ -224,8 +226,8 @@ export default function Salida() {
           empleado_id: form.empleado_id,
           notas: form.notas,
           items: prestamoItems.map((item) => ({
-            codigo_sku: item.sku,
-            articulo_id: item.sku ? undefined : item.articulo_id,
+            codigo_sku: item.tipo_codigo === "serie" ? item.sku : undefined,
+            articulo_id: item.tipo_codigo === "serie" ? undefined : item.articulo_id,
             cantidad: item.cantidad,
           })),
         }),
@@ -246,7 +248,7 @@ export default function Salida() {
         <PremiumCard interactive={false} className="border-blue-100 bg-blue-50/40 p-4">
         <form onSubmit={handleScan}>
           <label className="mb-1.5 block text-sm font-bold text-blue-900">Escanear SKU</label>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <input
               ref={scannerRef}
               name="scanner"
@@ -271,10 +273,9 @@ export default function Salida() {
           <div className="grid gap-5">
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tipo de movimiento</label>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 {[
                   { val: "salida", label: "Salida definitiva", active: "border-red-400 bg-red-50 text-red-700" },
-                  { val: "prestamo", label: "Préstamo", active: "border-amber-400 bg-amber-50 text-amber-700" },
                 ].map((option) => (
                   <button
                     key={option.val}
@@ -320,7 +321,7 @@ export default function Salida() {
               <input
                 type="number"
                 min={1}
-                disabled={Boolean(scannedItem)}
+                disabled={scannedItem?.tipo_codigo === "serie"}
                 value={form.cantidad}
                 onChange={(event) => set("cantidad", event.target.value)}
                 className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-100"
@@ -350,7 +351,7 @@ export default function Salida() {
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
               <Link to="/almacen" className="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-200">
                 Cancelar
               </Link>

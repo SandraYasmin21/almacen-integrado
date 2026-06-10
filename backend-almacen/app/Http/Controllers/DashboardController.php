@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
-use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\InventarioExport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
+use App\Exports\DashboardExport;
  
 class DashboardController extends Controller
 {
@@ -32,11 +33,22 @@ class DashboardController extends Controller
     {
         $ahora  = Carbon::now();
         $hace30 = $ahora->copy()->subDays(30);
+        $articulosTieneActivo = Schema::hasColumn('catalogo_articulos', 'activo');
+        $empleadosTieneActivo = Schema::hasColumn('empleados', 'activo');
+        $movimientoTipoColumn = Schema::hasColumn('movimiento_inventario', 'tipo')
+            ? 'tipo'
+            : 'tipo_movimiento';
+        $vehiculoRegresoColumn = Schema::hasColumn('bitacora_vehiculos', 'fecha_hora_regreso')
+            ? 'fecha_hora_regreso'
+            : 'fecha_regreso';
+        $vehiculoMotivoColumn = Schema::hasColumn('bitacora_vehiculos', 'motivo_viaje')
+            ? 'motivo_viaje'
+            : 'motivo_uso';
  
         $totalActivos = DB::table('stock_general')->sum('cantidad');
  
         $vehiculosRuta = DB::table('bitacora_vehiculos')
-            ->whereNull('fecha_hora_regreso')->count();
+            ->whereNull($vehiculoRegresoColumn)->count();
  
         $vehiculosTotal = DB::table('vehiculos_flotilla')
             ->where('estado', 'ACTIVO')->count();
@@ -49,31 +61,33 @@ class DashboardController extends Controller
         $porReponer = DB::table('stock_general as sg')
             ->join('catalogo_articulos as ca', 'sg.articulo_id', '=', 'ca.id')
             ->whereRaw('sg.cantidad < ca.stock_minimo')
-            ->where('ca.activo', true)->count();
+            ->when($articulosTieneActivo, fn ($query) => $query->where('ca.activo', true))
+            ->count();
  
         $semaforo = DB::table('stock_general as sg')
             ->join('catalogo_articulos as ca', 'sg.articulo_id', '=', 'ca.id')
-            ->where('ca.activo', true)
+            ->when($articulosTieneActivo, fn ($query) => $query->where('ca.activo', true))
             ->whereRaw('sg.cantidad <= ca.stock_minimo * 1.5')
             ->select('ca.nombre', 'sg.cantidad as stock_actual', 'ca.stock_minimo', 'sg.ubicacion')
             ->orderByRaw('(sg.cantidad / NULLIF(ca.stock_minimo, 0)) ASC')
             ->limit(10)->get()
             ->map(fn($r) => [
                 'nombre'       => $r->nombre,
+                'ubicacion'    => $r->ubicacion,
                 'stock_actual' => (float)$r->stock_actual,
                 'stock_minimo' => (float)$r->stock_minimo,
             ]);
  
         $tecnicos = DB::table('empleados as e')
-            ->leftJoin('bitacora_vehiculos as bv', function ($j) {
-                $j->on('e.id', '=', 'bv.empleado_id')->whereNull('bv.fecha_hora_regreso');
+            ->leftJoin('bitacora_vehiculos as bv', function ($j) use ($vehiculoRegresoColumn) {
+                $j->on('e.id', '=', 'bv.empleado_id')->whereNull("bv.{$vehiculoRegresoColumn}");
             })
-            ->where('e.activo', true)
-            ->whereIn('e.departamento_area', ['Técnico','Ingeniería','Mantenimiento','TI','Soporte'])
+            ->when($empleadosTieneActivo, fn ($query) => $query->where('e.activo', true))
+            ->whereIn('e.departamento_area', ['Tecnico','Ingenieria','Mantenimiento','TI','Soporte','Sistemas','Infraestructura','Operaciones'])
             ->select(
                 'e.id','e.nombre_completo','e.departamento_area',
                 DB::raw("CASE WHEN bv.id IS NOT NULL THEN 'ocupado' ELSE 'disponible' END as estado"),
-                'bv.motivo_viaje'
+                DB::raw("bv.{$vehiculoMotivoColumn} as motivo_viaje")
             )
             ->limit(8)->get()
             ->map(fn($t) => [
@@ -88,7 +102,7 @@ class DashboardController extends Controller
         $topArticulos = DB::table('detalle_movimiento as dm')
             ->join('movimiento_inventario as mi', 'dm.movimiento_id', '=', 'mi.id')
             ->join('catalogo_articulos as ca', 'dm.articulo_id', '=', 'ca.id')
-            ->where('mi.tipo', 'salida')
+            ->where("mi.{$movimientoTipoColumn}", Schema::hasColumn('movimiento_inventario', 'tipo') ? 'salida' : 'SALIDA')
             ->where('mi.fecha_hora', '>=', $hace30)
             ->whereNotNull('dm.articulo_id')
             ->groupBy('ca.id','ca.nombre')
@@ -100,14 +114,20 @@ class DashboardController extends Controller
             ->join('usuarios_sistema as u', 'mi.usuario_id', '=', 'u.id')
             ->leftJoin('detalle_movimiento as dm', 'mi.id', '=', 'dm.movimiento_id')
             ->leftJoin('catalogo_articulos as ca', 'dm.articulo_id', '=', 'ca.id')
-            ->select('mi.tipo','mi.fecha_hora','u.nombre_usuario as usuario','ca.nombre as articulo','dm.cantidad')
+            ->select(
+                DB::raw("mi.{$movimientoTipoColumn} as tipo"),
+                'mi.fecha_hora',
+                'u.nombre_usuario as usuario',
+                'ca.nombre as articulo',
+                'dm.cantidad'
+            )
             ->orderByDesc('mi.fecha_hora')->limit(10)->get()
             ->map(fn($m) => [
                 'tipo'       => $m->tipo,
                 'fecha_hora' => Carbon::parse($m->fecha_hora)->format('d/m H:i'),
                 'usuario'    => $m->usuario,
-                'articulo'   => $m->articulo ?? '—',
-                'cantidad'   => $m->cantidad ?? '—',
+                'articulo'   => $m->articulo ?? 'â€”',
+                'cantidad'   => $m->cantidad ?? 'â€”',
             ]);
  
         return [
@@ -138,8 +158,8 @@ class DashboardController extends Controller
             $notifs[] = [
                 'tipo'    => 'stock',
                 'urgente' => true,
-                'titulo'  => "Stock crítico: {$c->nombre}",
-                'mensaje' => "Solo quedan {$c->cantidad} unidades (mínimo: {$c->stock_minimo})",
+                'titulo'  => "Stock crÃ­tico: {$c->nombre}",
+                'mensaje' => "Solo quedan {$c->cantidad} unidades (mÃ­nimo: {$c->stock_minimo})",
             ];
         }
  
@@ -157,8 +177,8 @@ class DashboardController extends Controller
             $notifs[] = [
                 'tipo'    => 'prestamo',
                 'urgente' => $dias > 60,
-                'titulo'  => "Préstamo vencido: {$v->articulo}",
-                'mensaje' => "Asignado a {$v->nombre_completo} hace {$dias} días",
+                'titulo'  => "PrÃ©stamo vencido: {$v->articulo}",
+                'mensaje' => "Asignado a {$v->nombre_completo} hace {$dias} dÃ­as",
             ];
         }
  
@@ -202,10 +222,10 @@ class DashboardController extends Controller
                 ->where('ca.activo', true)
                 ->select('ca.nombre','ca.modelo','sc.nombre as subcategoria','ca.unidad_medida',
                     'sg.cantidad','ca.stock_minimo','sg.ubicacion',
-                    DB::raw("CASE WHEN sg.cantidad <= ca.stock_minimo*0.2 THEN 'CRÍTICO' WHEN sg.cantidad <= ca.stock_minimo THEN 'BAJO' ELSE 'NORMAL' END as estado"))
+                    DB::raw("CASE WHEN sg.cantidad <= ca.stock_minimo*0.2 THEN 'CRÃTICO' WHEN sg.cantidad <= ca.stock_minimo THEN 'BAJO' ELSE 'NORMAL' END as estado"))
                 ->get();
  
-            $rows = [['Artículo','Modelo','Subcategoría','Unidad','Stock','Mínimo','Ubicación','Estado','Actualizado']];
+            $rows = [['ArtÃ­culo','Modelo','SubcategorÃ­a','Unidad','Stock','MÃ­nimo','UbicaciÃ³n','Estado','Actualizado']];
             foreach ($inventario as $item) {
                 $rows[] = [$item->nombre,$item->modelo??'',$item->subcategoria??'',$item->unidad_medida,
                     $item->cantidad,$item->stock_minimo,$item->ubicacion,$item->estado,Carbon::now()->format('d/m/Y H:i')];
@@ -246,27 +266,23 @@ class DashboardController extends Controller
  
     public function exportExcel(Request $request)
     {
-        $section  = $request->input('section','inventario');
-        $filename = "almacen_{$section}_".Carbon::now()->format('Ymd_His').'.xlsx';
-        return Excel::download(new InventarioExport($section), $filename);
+        $data = $this->getMetricasData();
+        $filename = "dashboard_export_".Carbon::now()->format('Ymd_His').'.xlsx';
+        
+        return Excel::download(new DashboardExport($data), $filename);
     }
  
     public function exportPDF(Request $request)
     {
-        $inventario = DB::table('stock_general as sg')
-            ->join('catalogo_articulos as ca','sg.articulo_id','=','ca.id')
-            ->leftJoin('subcategorias as sc','ca.subcategoria_id','=','sc.id')
-            ->where('ca.activo',true)
-            ->select('ca.nombre','ca.modelo','sc.nombre as subcategoria','sg.cantidad','ca.stock_minimo','sg.ubicacion')
-            ->orderBy('ca.nombre')->get();
- 
-        $pdf = Pdf::loadView('pdf.inventario',[
-            'inventario'   => $inventario,
+        $data = $this->getMetricasData();
+
+        $pdf = Pdf::loadView('pdf.dashboard',[
+            'data'         => $data,
             'fecha'        => Carbon::now()->format('d/m/Y H:i'),
             'generado_por' => auth()->user()->nombre_usuario ?? 'Sistema',
         ]);
-        $pdf->setPaper('a4','landscape');
-        return $pdf->download('inventario_'.Carbon::now()->format('Ymd').'.pdf');
+        $pdf->setPaper('a4');
+        return $pdf->download('dashboard_export_'.Carbon::now()->format('Ymd').'.pdf');
     }
  
     private function iniciales(string $nombre): string
@@ -276,3 +292,4 @@ class DashboardController extends Controller
     }
 
 }
+

@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\InventarioExport;
+use App\Http\Controllers\OrdenCompraController;
 
 class AlmacenController extends Controller
 {
@@ -98,6 +102,22 @@ class AlmacenController extends Controller
         return $sku;
     }
 
+    private function generateChildSku(string $masterSku, int $sequence): string
+    {
+        $base = strtoupper(trim($masterSku));
+
+        if ($base === '') {
+            $base = 'SLK-GEN';
+        }
+
+        do {
+            $sku = sprintf('%s-%03d', $base, $sequence);
+            $sequence++;
+        } while (DB::table('inventario_series')->where('codigo_interno_generado', $sku)->exists());
+
+        return $sku;
+    }
+
     private function serieDisponible(int $serieId)
     {
         $serie = DB::table('inventario_series as is')
@@ -163,7 +183,18 @@ class AlmacenController extends Controller
 
     public function entradaForm()
     {
-        $articulos  = DB::table('catalogo_articulos')->where('activo', true)->orderBy('nombre')->get();
+        $articulos = DB::table('catalogo_articulos as ca')
+            ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
+            ->leftJoin('categorias as cat', 'sc.categoria_id', '=', 'cat.id')
+            ->where('ca.activo', true)
+            ->select(
+                'ca.*',
+                'sc.nombre as subcategoria_nombre',
+                'cat.nombre as categoria_nombre'
+            )
+            ->orderBy('ca.nombre')
+            ->get();
+            
         $proveedores = DB::table('proveedores')->where('activo', true)->orderBy('nombre_empresa')->get();
         return Inertia::render('Almacen/Entrada', compact('articulos', 'proveedores'));
     }
@@ -194,6 +225,32 @@ class AlmacenController extends Controller
     public function movimientosView()
     {
         return Inertia::render('Almacen/Movimientos');
+    }
+
+    public function inventarioApi()
+    {
+        return response()->json($this->getInventarioQuery()->get());
+    }
+
+    public function export(Request $request, $format)
+    {
+        if ($format === 'excel') {
+            $filename = "inventario_almacen_".Carbon::now()->format('Ymd_His').'.xlsx';
+            return Excel::download(new InventarioExport('inventario'), $filename, \Maatwebsite\Excel\Excel::XLSX);
+        }
+
+        if ($format === 'pdf') {
+            $inventario = $this->getInventarioQuery()->get();
+            $pdf = Pdf::loadView('pdf.inventario', [
+                'inventario'   => $inventario,
+                'fecha'        => Carbon::now()->format('d/m/Y H:i'),
+                'generado_por' => auth()->user()->nombre_usuario ?? 'Sistema',
+            ]);
+            $pdf->setPaper('a4', 'landscape');
+            return $pdf->download('inventario_almacen_'.Carbon::now()->format('Ymd').'.pdf');
+        }
+
+        return response()->json(['error' => 'Format not supported'], 400);
     }
 
     public function articuloDetalle(int $id)
@@ -301,13 +358,14 @@ class AlmacenController extends Controller
     public function registrarEntrada(Request $request)
     {
         $validated = $request->validate([
-            'articulo_id' => 'required|integer|exists:catalogo_articulos,id',
-            'modelo' => 'nullable|string|max:150',
-            'tipo_articulo' => 'nullable|in:venta,herramienta,mixto',
-            'proveedor_id' => 'nullable|integer|exists:proveedores,id',
-            'cantidad' => 'required|integer|min:1|max:500',
-            'ubicacion' => 'nullable|string|max:50',
-            'notas' => 'nullable|string|max:500',
+            'articulo_id'    => 'required|integer|exists:catalogo_articulos,id',
+            'modelo'         => 'nullable|string|max:150',
+            'tipo_articulo'  => 'nullable|in:venta,herramienta,mixto',
+            'proveedor_id'   => 'nullable|integer|exists:proveedores,id',
+            'cantidad'       => 'required|integer|min:1|max:500',
+            'ubicacion'      => 'nullable|string|max:50',
+            'notas'          => 'nullable|string|max:500',
+            'orden_compra_id'=> 'nullable|integer|exists:ordenes_compra,id',
         ]);
 
         $data = DB::transaction(function () use ($validated) {
@@ -339,68 +397,132 @@ class AlmacenController extends Controller
 
             $this->incrementStock($validated['articulo_id'], (float) $validated['cantidad'], $validated['ubicacion'] ?? null);
 
+            $tipoArticulo = $validated['tipo_articulo'] ?? ($articulo->tipo_articulo ?? 'herramienta');
+            $esConsumible = (bool) ($articulo->es_consumible ?? false);
             $skus = [];
-            for ($i = 1; $i <= (int) $validated['cantidad']; $i++) {
-                $sku = $this->generateSku($validated['articulo_id'], $i);
-                $payload = [
-                    'articulo_id' => $validated['articulo_id'],
-                    'proveedor_id' => $validated['proveedor_id'] ?? null,
-                    'codigo_interno_generado' => $sku,
-                    'estado' => 'DISPONIBLE',
-                    'ubicacion' => $validated['ubicacion'] ?? null,
-                ];
-                if (Schema::hasColumn('inventario_series', 'created_at')) {
-                    $payload['created_at'] = Carbon::now();
-                    $payload['updated_at'] = Carbon::now();
+
+            if (!$esConsumible) {
+                $masterSku = Schema::hasColumn('catalogo_articulos', 'sku_maestro')
+                    ? ($articulo->sku_maestro ?? null)
+                    : null;
+
+                $masterSku = $masterSku ?: $this->generateSku((int) $validated['articulo_id'], 0);
+                $conteoActual = DB::table('inventario_series')
+                    ->where('articulo_id', $validated['articulo_id'])
+                    ->count();
+
+                for ($i = 1; $i <= (int) $validated['cantidad']; $i++) {
+                    $sku = $this->generateChildSku($masterSku, $conteoActual + $i);
+                    $payload = [
+                        'articulo_id' => $validated['articulo_id'],
+                        'proveedor_id' => $validated['proveedor_id'] ?? null,
+                        'codigo_interno_generado' => $sku,
+                        'estado' => 'DISPONIBLE',
+                        'ubicacion' => $validated['ubicacion'] ?? null,
+                    ];
+                    if (Schema::hasColumn('inventario_series', 'created_at')) {
+                        $payload['created_at'] = Carbon::now();
+                        $payload['updated_at'] = Carbon::now();
+                    }
+                    DB::table('inventario_series')->insert($payload);
+                    $skus[] = $sku;
                 }
-                DB::table('inventario_series')->insert($payload);
-                $skus[] = $sku;
+            }
+
+            // Si viene vinculado a una OC, actualizar cantidades recibidas y estado
+            if (!empty($validated['orden_compra_id'])) {
+                OrdenCompraController::registrarRecepcion(
+                    (int) $validated['orden_compra_id'],
+                    (int) $validated['articulo_id'],
+                    (int) $validated['cantidad']
+                );
             }
 
             return [
                 'movimiento_id' => $movId,
-                'articulo' => [
-                    'id' => $articulo->id,
-                    'nombre' => $articulo->nombre,
-                    'modelo' => $validated['modelo'] ?? $articulo->modelo,
-                    'tipo_articulo' => $validated['tipo_articulo'] ?? ($articulo->tipo_articulo ?? 'herramienta'),
+                'tipo'          => $esConsumible ? 'consumible' : 'series',
+                'articulo'      => [
+                    'id'           => $articulo->id,
+                    'nombre'       => $articulo->nombre,
+                    'modelo'       => $validated['modelo'] ?? $articulo->modelo,
+                    'tipo_articulo'=> $tipoArticulo,
+                    'es_consumible'=> $esConsumible,
+                    'sku_maestro'  => $articulo->sku_maestro ?? null,
                 ],
-                'skus' => $skus,
-                'cantidad' => (int) $validated['cantidad'],
+                'skus'           => $skus,
+                'skus_generados' => $skus,
+                'cantidad'       => (int) $validated['cantidad'],
+                'orden_compra_id'=> $validated['orden_compra_id'] ?? null,
             ];
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Entrada registrada correctamente.',
+            'message' => $data['tipo'] === 'consumible'
+                ? 'Entrada de consumible registrada correctamente.'
+                : 'Series generadas correctamente.',
             'data' => $data,
         ]);
     }
 
     public function buscarSku(string $codigo)
     {
+        $codigo = strtoupper(trim($codigo));
         $serie = DB::table('inventario_series as is')
             ->join('catalogo_articulos as ca', 'is.articulo_id', '=', 'ca.id')
             ->leftJoin('stock_general as sg', 'ca.id', '=', 'sg.articulo_id')
-            ->whereRaw('UPPER(is.codigo_interno_generado) = ?', [strtoupper(trim($codigo))])
+            ->whereRaw('UPPER(is.codigo_interno_generado) = ?', [$codigo])
             ->select(
                 'is.id as serie_id',
                 'is.codigo_interno_generado as sku',
+                DB::raw("'serie' as tipo_codigo"),
                 'is.estado',
                 'is.ubicacion',
                 'ca.id as articulo_id',
                 'ca.nombre as articulo',
                 'ca.modelo',
                 'ca.unidad_medida',
+                'ca.es_consumible',
                 DB::raw('COALESCE(sg.cantidad, 0) as stock')
             )
             ->first();
 
-        if (!$serie) {
-            return response()->json(['success' => false, 'message' => 'SKU no encontrado.'], 404);
+        if ($serie) {
+            return response()->json(['success' => true, 'data' => $serie]);
         }
 
-        return response()->json(['success' => true, 'data' => $serie]);
+        if (Schema::hasColumn('catalogo_articulos', 'sku_maestro')) {
+            $articulo = DB::table('catalogo_articulos as ca')
+                ->leftJoin('stock_general as sg', 'ca.id', '=', 'sg.articulo_id')
+                ->whereRaw('UPPER(ca.sku_maestro) = ?', [$codigo])
+                ->whereNull('ca.deleted_at')
+                ->select(
+                    'ca.id as articulo_id',
+                    'ca.sku_maestro as sku',
+                    DB::raw("'maestro' as tipo_codigo"),
+                    DB::raw("'DISPONIBLE' as estado"),
+                    'ca.nombre as articulo',
+                    'ca.modelo',
+                    'ca.unidad_medida',
+                    'ca.es_consumible',
+                    DB::raw($this->articleTypeSelect() . ' as tipo_articulo'),
+                    DB::raw('COALESCE(sg.cantidad, 0) as stock')
+                )
+                ->first();
+
+            if ($articulo && (bool) $articulo->es_consumible) {
+                return response()->json(['success' => true, 'data' => $articulo]);
+            }
+
+            if ($articulo) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Este SKU maestro requiere escanear una serie individual.',
+                ], 422);
+            }
+        }
+
+        return response()->json(['success' => false, 'message' => 'SKU no encontrado.'], 404);
     }
 
     public function registrarSalida(Request $request)
@@ -416,17 +538,31 @@ class AlmacenController extends Controller
 
         $data = DB::transaction(function () use ($validated) {
             $serie = null;
+            $articuloMaster = null;
             if (!empty($validated['codigo_sku'])) {
-                $serieId = DB::table('inventario_series')->whereRaw('UPPER(codigo_interno_generado) = ?', [strtoupper(trim($validated['codigo_sku']))])->value('id');
-                if (!$serieId) {
-                    abort(response()->json(['success' => false, 'message' => 'SKU no encontrado.'], 404));
+                $codigo = strtoupper(trim($validated['codigo_sku']));
+                $serieId = DB::table('inventario_series')->whereRaw('UPPER(codigo_interno_generado) = ?', [$codigo])->value('id');
+                if ($serieId) {
+                    $serie = $this->serieDisponible((int) $serieId);
+                } elseif (Schema::hasColumn('catalogo_articulos', 'sku_maestro')) {
+                    $articuloMaster = DB::table('catalogo_articulos')
+                        ->whereRaw('UPPER(sku_maestro) = ?', [$codigo])
+                        ->where('es_consumible', true)
+                        ->whereNull('deleted_at')
+                        ->lockForUpdate()
+                        ->first();
                 }
-                $serie = $this->serieDisponible((int) $serieId);
+
+                if (!$serie && !$articuloMaster) {
+                    abort(response()->json(['success' => false, 'message' => 'SKU no encontrado o requiere serie individual.'], 404));
+                }
             } elseif (!empty($validated['serie_id'])) {
                 $serie = $this->serieDisponible((int) $validated['serie_id']);
             }
 
-            $articuloId = $serie ? (int) $serie->articulo_id : (int) $validated['articulo_id'];
+            $articuloId = $serie
+                ? (int) $serie->articulo_id
+                : (int) ($articuloMaster->id ?? $validated['articulo_id']);
             $cantidad = $serie ? 1 : (float) ($validated['cantidad'] ?? 1);
 
             $this->incrementStock($articuloId, -$cantidad);
@@ -721,5 +857,14 @@ class AlmacenController extends Controller
         });
 
         return response()->json(['success' => true, 'message' => 'Movimiento eliminado correctamente.']);
+    }
+
+    private function articleTypeSelect(): string
+    {
+        if (Schema::hasColumn('catalogo_articulos', 'tipo_articulo')) {
+            return 'ca.tipo_articulo';
+        }
+
+        return "CASE WHEN ca.es_consumible THEN 'venta' ELSE 'herramienta' END";
     }
 }

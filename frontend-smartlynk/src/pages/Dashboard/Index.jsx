@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Link } from "react-router-dom";
-import { Badge, BadgeDelta, Metric, ProgressBar, SparkAreaChart } from "@tremor/react";
+import { Metric, ProgressBar, SparkAreaChart } from "@tremor/react";
 import {
   AlertTriangle,
   ArrowDownToLine,
@@ -15,7 +15,9 @@ import {
   RefreshCw,
   ShoppingCart,
   X,
+  ArrowUpRight,
 } from "lucide-react";
+import { toast } from "sonner";
 import { apiFetch } from "@/lib/auth";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -55,10 +57,10 @@ const sparklineData = {
 };
 
 const movementConfig = {
-  entrada: { color: "emerald", label: "Entrada" },
-  salida: { color: "rose", label: "Salida" },
-  prestamo: { color: "amber", label: "Prestamo" },
-  devolucion: { color: "blue", label: "Devolucion" },
+  entrada: { style: "bg-emerald-100 text-emerald-700 border-emerald-200", label: "Entrada" },
+  salida: { style: "bg-rose-100 text-rose-700 border-rose-200", label: "Salida" },
+  prestamo: { style: "bg-amber-100 text-amber-700 border-amber-200", label: "Préstamo" },
+  devolucion: { style: "bg-blue-100 text-blue-700 border-blue-200", label: "Devolución" },
 };
 
 function Panel({ children, className = "" }) {
@@ -174,7 +176,9 @@ function ArticleRow({ nombre, salidas }) {
         <p className="truncate text-sm font-semibold text-slate-800">{nombre}</p>
         <p className="mt-0.5 text-xs text-slate-400">{salidas} movimientos</p>
       </div>
-      <BadgeDelta deltaType="increase" size="sm" />
+      <Link to={`/catalogo?q=${encodeURIComponent(nombre)}`} className="flex items-center gap-1 rounded-lg bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-200">
+        <ArrowUpRight size={14} strokeWidth={3} />
+      </Link>
     </div>
   );
 }
@@ -227,6 +231,36 @@ export default function Dashboard() {
     setCustomRange(undefined);
     setRangeOpen(false);
     load();
+  };
+
+  const downloadBlob = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  };
+
+  const handleExport = async (format) => {
+    try {
+      const toastId = toast.loading(`Exportando en ${format.toUpperCase()}...`);
+      const response = await apiFetch(`/api/export/${format}`);
+      
+      if (!response.ok) {
+        toast.dismiss(toastId);
+        throw new Error("Error al exportar");
+      }
+      
+      const blob = await response.blob();
+      const extension = format === "pdf" ? "pdf" : "xlsx";
+      downloadBlob(blob, `dashboard_export.${extension}`);
+      toast.success(`Dashboard exportado en ${format.toUpperCase()}`, { id: toastId });
+    } catch (error) {
+      toast.error(error.message || "Error al exportar");
+    }
   };
 
   const formatRangeDate = (date) => (date ? format(date, "dd MMM yyyy", { locale: es }) : "--");
@@ -396,11 +430,15 @@ export default function Dashboard() {
                     </tr>
                   ) : (
                     data.movimientos_recientes.map((movement, index) => {
-                      const config = movementConfig[movement.tipo?.toLowerCase()] || { color: "slate", label: movement.tipo };
+                      const config = movementConfig[movement.tipo?.toLowerCase()] || { style: "bg-slate-100 text-slate-700 border-slate-200", label: movement.tipo };
                       return (
                         <tr key={index} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/70">
                           <td className="px-5 py-3 text-xs text-slate-500">{movement.fecha_hora}</td>
-                          <td className="px-5 py-3"><Badge color={config.color} size="sm">{config.label}</Badge></td>
+                          <td className="px-5 py-3">
+                            <span className={`inline-flex items-center justify-center rounded-lg border px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider ${config.style}`}>
+                              {config.label}
+                            </span>
+                          </td>
                           <td className="max-w-xs truncate px-5 py-3 font-semibold text-slate-700">{movement.articulo}</td>
                           <td className="px-5 py-3 font-bold text-slate-900">{movement.cantidad ?? "-"}</td>
                           <td className="px-5 py-3 text-xs text-slate-600">{movement.usuario}</td>
@@ -423,7 +461,7 @@ export default function Dashboard() {
                 <Link to="/almacen/salida" className="flex items-center gap-3 rounded-xl bg-rose-50 px-4 py-3 font-bold text-rose-700 transition-colors hover:bg-rose-100">
                   <ArrowUpFromLine size={20} /> Registrar Salida
                 </Link>
-                <Link to="/almacen/prestamo" className="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 font-bold text-amber-700 transition-colors hover:bg-amber-100">
+                <Link to="/mostrador/resguardos" className="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 font-bold text-amber-700 transition-colors hover:bg-amber-100">
                   <ArrowRightLeft size={20} /> Nuevo Prestamo
                 </Link>
               </div>
@@ -432,10 +470,10 @@ export default function Dashboard() {
             <Panel className="p-6">
               <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400">Exportar Reportes</h2>
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <button onClick={() => window.location.href = "/api/export/pdf"} className="flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-white py-3 text-sm font-bold text-red-600 shadow-sm transition-colors hover:bg-red-50">
+                <button onClick={() => handleExport("pdf")} className="flex items-center justify-center gap-2 rounded-xl bg-red-600 py-3 text-sm font-bold text-white shadow-sm shadow-red-100 transition-all hover:-translate-y-0.5 hover:bg-red-700 hover:shadow-md">
                   <FileText size={18} /> PDF
                 </button>
-                <button onClick={() => window.location.href = "/api/export/excel"} className="flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white py-3 text-sm font-bold text-emerald-600 shadow-sm transition-colors hover:bg-emerald-50">
+                <button onClick={() => handleExport("excel")} className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600 py-3 text-sm font-bold text-white shadow-sm shadow-emerald-100 transition-all hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-md">
                   <FileSpreadsheet size={18} /> Excel
                 </button>
               </div>

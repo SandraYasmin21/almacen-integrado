@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import './index.css';
 
 import LoginPage from './pages/LoginPage';
@@ -16,10 +16,17 @@ import Kilometraje from './pages/flotilla/Kilometraje';
 import DashboardAlmacen from './pages/Dashboard/Index';
 import AlmacenIndex from './pages/Almacen/Index';
 import AlmacenEntrada from './pages/Almacen/Entrada';
-import AlmacenSalida from './pages/Almacen/Salida';
-import AlmacenMovimientos from './pages/Almacen/Movimientos';
+import OrdenesCompra from './pages/Almacen/OrdenesCompra';
+import AjustesAuditorias from './pages/Almacen/AjustesAuditorias';
 import EmpleadosIndex from './pages/Empleados/Index';
+import CatalogoCentral from './pages/CatalogoCentral/Index';
 
+import RegistroMovimientosPage from './pages/Almacen/Movimientos/RegistroMovimientosPage';
+import DetalleMovimientoMostrador from './pages/Mostrador/DetalleMovimiento';
+import TerminalEscaner from './pages/Mostrador/TerminalEscaner';
+import DespachoVentas from './pages/Mostrador/DespachoVentas';
+import ResguardosPrestamos from './pages/Mostrador/ResguardosPrestamos';
+import Devoluciones from './pages/Mostrador/Devoluciones';
 function PrivatePage({ children }) {
   return <ProtectedRoute>{children}</ProtectedRoute>;
 }
@@ -34,14 +41,34 @@ function App() {
         {/* Grupo de rutas protegidas con Layout fijo */}
         <Route element={<PrivatePage><Layout /></PrivatePage>}>
           <Route path="/dashboard" element={<DashboardAlmacen />} />
-          <Route path="/almacen" element={<Navigate to="/almacen/articulos" replace />} />
-          <Route path="/almacen/articulos" element={<AlmacenIndex />} />
-          <Route path="/almacen/entrada" element={<AlmacenEntrada />} />
-          <Route path="/almacen/salida" element={<AlmacenSalida />} />
-          <Route path="/almacen/movimientos" element={<AlmacenMovimientos />} />
-          <Route path="/empleados" element={<EmpleadosIndex />} />
-          <Route path="/catalogo" element={<div className="p-8">Catalogo (pendiente de migrar)</div>} />
-          <Route path="/mostrador" element={<div className="p-8 text-slate-500">Modulo de Mostrador (En desarrollo)</div>} />
+          <Route path="/almacen" element={<Navigate to="/almacen/stock" replace />} />
+          <Route path="/almacen/stock" element={<AlmacenIndex />} />
+          <Route path="/almacen/articulos" element={<Navigate to="/almacen/stock" replace />} />
+          <Route path="/almacen/recepcion" element={<AlmacenEntrada />} />
+          <Route path="/almacen/entrada" element={<Navigate to="/almacen/recepcion" replace />} />
+          <Route path="/almacen/salida" element={<Navigate to="/mostrador/terminal" replace />} />
+          <Route path="/almacen/ordenes-compra" element={<OrdenesCompra />} />
+          <Route path="/almacen/ajustes" element={<AjustesAuditorias />} />
+          <Route path="/almacen/movimientos" element={<Navigate to="/almacen/ajustes" replace />} />
+          <Route path="/empleados" element={<Navigate to="/empleados/directorio" replace />} />
+          <Route path="/empleados/directorio" element={<EmpleadosIndex view="directorio" />} />
+          <Route path="/empleados/resguardos" element={<EmpleadosIndex view="resguardos" />} />
+          <Route path="/empleados/prestamos" element={<EmpleadosIndex view="prestamos" />} />
+          <Route path="/catalogo" element={<CatalogoCentral />} />
+          <Route path="/mostrador">
+            <Route index element={<Navigate to="/mostrador/terminal" replace />} />
+            <Route path="terminal" element={<TerminalEscaner />} />
+            <Route path="despacho" element={<DespachoVentas />} />
+            <Route path="resguardos" element={<ResguardosPrestamos />} />
+            <Route path="devoluciones" element={<Devoluciones />} />
+            <Route path="historial" element={<RegistroMovimientosPage />} />
+            <Route path="entrada" element={<Navigate to="/almacen/recepcion" replace />} />
+            <Route path="salida" element={<Navigate to="/mostrador/terminal" replace />} />
+            <Route path="registrar" element={<Navigate to="/mostrador/terminal" replace />} />
+            <Route path="ordenes" element={<Navigate to="/mostrador/despacho" replace />} />
+            <Route path="movimientos/:id" element={<DetalleMovimientoMostrador />} />
+            <Route path="*" element={<Navigate to="/mostrador/terminal" replace />} />
+          </Route>
           
           <Route path="/flotilla" element={<Navigate to="/flotilla/dashboard" replace />} />
 

@@ -131,6 +131,8 @@ export default function AlmacenIndex() {
   const [estado, setEstado]       = useState("todos");
   const [vista, setVista]         = useState("tabla");
   const [modalArticulo, setModalArticulo] = useState(null);
+  const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState(null);
+  const navigate = useNavigate();
 
   const cargar = async () => {
     setCargando(true);
@@ -169,7 +171,7 @@ export default function AlmacenIndex() {
 
   const descargarExport = async (format) => {
     try {
-      const response = await fetch(`${API}/api/export/${format}?section=inventario`, { headers: authHeaders() });
+      const response = await fetch(`${API}/api/almacen/export/${format}`, { headers: authHeaders() });
       if (!response.ok) throw new Error("No se pudo generar el archivo");
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
@@ -190,8 +192,19 @@ export default function AlmacenIndex() {
 
         {/* Header */}
         <div className="flex items-center justify-end flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <ExportButtons onPdf={() => descargarExport("pdf")} onExcel={() => descargarExport("excel")} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => descargarExport("pdf")} className="flex items-center gap-2 px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white text-sm font-medium rounded-full shadow-sm hover:-translate-y-0.5 transition">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Exportar PDF
+            </button>
+            <button onClick={() => descargarExport("excel")} className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium rounded-full shadow-sm hover:-translate-y-0.5 transition">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              Exportar Excel
+            </button>
             <Link to="/almacen/entrada"
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
               + Nueva Entrada
@@ -260,7 +273,34 @@ export default function AlmacenIndex() {
 
         {/* Vista Tabla */}
         {vista === "tabla" && (
-          <DataTableShell>
+          <>
+            {/* Reabastecimiento Urgente */}
+            {articulos.some(a => (a.cantidad ?? 0) === 0) && (
+              <div className="bg-white rounded-2xl border-l-4 border-l-rose-500 border-y border-r border-slate-200 shadow-sm p-4 mb-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                  </svg>
+                  <h3 className="font-semibold text-slate-800">Reabastecimiento Urgente</h3>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {articulos.filter(a => (a.cantidad ?? 0) === 0).slice(0, 10).map(art => (
+                    <button key={art.id} onClick={() => navigate('/almacen/ordenes-compra', { state: { precargarArticulo: art } })}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-medium rounded-xl transition">
+                      <span className="truncate max-w-[200px]">{art.nombre}</span>
+                      <svg className="w-3.5 h-3.5 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                  ))}
+                  {articulos.filter(a => (a.cantidad ?? 0) === 0).length > 10 && (
+                    <span className="text-xs text-slate-500 flex items-center px-2">
+                      y {articulos.filter(a => (a.cantidad ?? 0) === 0).length - 10} más...
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <DataTableShell>
               <table className={dataTableClass()}>
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr className="text-xs text-slate-500 uppercase tracking-wide">
@@ -311,14 +351,24 @@ export default function AlmacenIndex() {
                       </td>
                       <td className="px-5 py-3 text-xs text-slate-400">{art.stock_minimo}</td>
                       <td className="px-5 py-3">
-                        <Semaforo cantidad={art.cantidad ?? 0} minimo={art.stock_minimo} />
+                        {(art.cantidad ?? 0) === 0 ? (
+                           <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-rose-100 text-rose-700">Agotado</span>
+                        ) : (
+                           <Semaforo cantidad={art.cantidad ?? 0} minimo={art.stock_minimo} />
+                        )}
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1">
-                          <Link to={`/almacen/articulo/${art.id}`}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition text-xs">
-                            Ver
-                          </Link>
+                          <button onClick={() => {
+                            if ((art.cantidad ?? 0) === 0) {
+                              navigate('/almacen/ordenes-compra', { state: { precargarArticulo: art } });
+                            } else {
+                              navigate('/catalogo', { state: { openArticulo: art } });
+                            }
+                          }}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition text-xs font-medium">
+                            {(art.cantidad ?? 0) === 0 ? "Comprar" : "Ver"}
+                          </button>
                           <button onClick={() => setModalArticulo(art)}
                             className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition text-xs">
                             Salida
@@ -330,6 +380,7 @@ export default function AlmacenIndex() {
                 </tbody>
               </table>
           </DataTableShell>
+          </>
         )}
 
         {/* Vista Ubicaciones */}
@@ -340,8 +391,8 @@ export default function AlmacenIndex() {
                 <p className="text-sm text-slate-400">No hay ubicaciones registradas</p>
               </div>
             ) : ubicaciones.map(ub => (
-              <Link key={ub.ubicacion} to={`/almacen/ubicacion/${ub.ubicacion}`}
-                className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 hover:shadow-md transition">
+              <button key={ub.ubicacion} onClick={() => setUbicacionSeleccionada(ub)}
+                className="text-left bg-white rounded-2xl border border-slate-200 shadow-sm p-4 hover:shadow-lg hover:-translate-y-1.5 transition-all duration-200">
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
                     <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -352,12 +403,49 @@ export default function AlmacenIndex() {
                 </div>
                 <p className="text-sm font-semibold text-slate-800">{ub.total_articulos} artículos</p>
                 <p className="text-xs text-slate-400 mt-0.5">{ub.total_unidades} unidades totales</p>
-              </Link>
+              </button>
             ))}
           </div>
         )}
 
       </div>
+
+      {/* Slide-over de Ubicaciones */}
+      {ubicacionSeleccionada && (
+        <div className="fixed inset-0 z-[100] flex justify-end">
+          <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-sm transition-opacity" onClick={() => setUbicacionSeleccionada(null)} />
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl animate-in slide-in-from-right flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Ubicación: <span className="font-mono text-blue-600">{ubicacionSeleccionada.ubicacion}</span></h3>
+                <p className="text-sm text-slate-500">{ubicacionSeleccionada.total_articulos} artículos • {ubicacionSeleccionada.total_unidades} unidades</p>
+              </div>
+              <button onClick={() => setUbicacionSeleccionada(null)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {articulos.filter(a => a.ubicacion === ubicacionSeleccionada.ubicacion).map(art => (
+                <div key={art.id} className="flex items-start justify-between p-4 rounded-xl border border-slate-100 hover:border-blue-100 hover:bg-blue-50/50 transition">
+                  <div>
+                    <p className="font-semibold text-slate-800 text-sm">{art.nombre}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{art.modelo ?? "-"} • {art.categoria_nombre}</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-bold text-slate-800 text-sm">{art.cantidad ?? 0}</span>
+                    <p className="text-[10px] text-slate-400 font-medium uppercase mt-0.5">{art.unidad_medida}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50">
+              <button onClick={() => setUbicacionSeleccionada(null)} className="w-full py-2.5 bg-white border border-slate-200 rounded-xl font-medium text-slate-600 hover:bg-slate-50 transition shadow-sm">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {modalArticulo && (
@@ -371,4 +459,3 @@ export default function AlmacenIndex() {
     </>
   );
 }
-

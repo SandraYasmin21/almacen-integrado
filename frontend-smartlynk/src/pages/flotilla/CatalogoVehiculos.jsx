@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import { SelectPremium } from '../../components/ui/SelectPremium';
+import StatusBadge from '../../components/StatusBadge';
 
 const vehiculoSchema = z.object({
     nombre_alias: z.string().min(1, "Obligatorio"),
@@ -87,7 +88,6 @@ export default function CatalogoVehiculos() {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const totalPages = 14;
 
     // Filters State
     const [filters, setFilters] = useState({
@@ -141,7 +141,7 @@ export default function CatalogoVehiculos() {
     };
     
     // Datos falsos para la tabla (simulación de backend)
-    const vehiculos = [
+    const allVehiculos = [
         { alias: "Ranger Blanca", no: "830", modelo: "Ford Ranger 2021", placa: "ABC-123-D", niv: "1FTER4FH5MLD...", tipo: "Pickup", gps: "ACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
         { alias: "Silverado 834", no: "831", modelo: "Chev. Silverado 2022", placa: "XYZ-456-E", niv: "3GCUKREC4AG1...", tipo: "Camioneta", gps: "ACTIVO", certificacion: "VIG 20/09/25", estado: "ACTIVO" },
         { alias: "RAM Roja", no: "832", modelo: "Dodge RAM 1500 2020", placa: "TMX-1234", niv: "1D7RB1CT2AS1...", tipo: "Pickup", gps: "INACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
@@ -149,6 +149,16 @@ export default function CatalogoVehiculos() {
         { alias: "Hilux Plata", no: "834", modelo: "Toyota Hilux 2023", placa: "TMP-9012", niv: "MR0GX22G4001...", tipo: "Pickup", gps: "ACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
         { alias: "NP300 Blanca", no: "835", modelo: "Nissan NP300 2022", placa: "TPP-3456", niv: "3N6AD33A9YK8...", tipo: "Camioneta", gps: "ACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
     ];
+
+    const totalVehiculos = allVehiculos.length;
+    const totalPages = Math.ceil(totalVehiculos / rowsPerPage) || 1;
+    const paginatedVehiculos = allVehiculos.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [rowsPerPage, totalPages, currentPage]);
 
     return (
         <div className="pb-20">
@@ -260,53 +270,38 @@ export default function CatalogoVehiculos() {
                     <table className="w-full table-fixed text-left text-sm text-slate-600">
                         <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Nombre / Alias</th>
-                                <th className="px-6 py-4 font-semibold">Modelo</th>
-                                <th className="px-6 py-4 font-semibold">Placa</th>
-                                <th className="px-6 py-4 font-semibold">NIV</th>
-                                <th className="px-6 py-4 font-semibold">Tipo</th>
-                                <th className="px-6 py-4 font-semibold">GPS</th>
-                                <th className="px-6 py-4 font-semibold">Certificacion</th>
-                                <th className="px-6 py-4 font-semibold">Estado</th>
-                                <th className="px-6 py-4"></th>
+                                <th className="w-[13%] px-4 py-4 font-semibold">Nombre / Alias</th>
+                                <th className="w-[14%] px-4 py-4 font-semibold">Modelo</th>
+                                <th className="w-[10%] px-4 py-4 font-semibold">Placa</th>
+                                <th className="w-[13%] px-4 py-4 font-semibold">NIV</th>
+                                <th className="w-[10%] px-4 py-4 font-semibold">Tipo</th>
+                                <th className="w-[12%] px-4 py-4 text-center font-semibold">GPS</th>
+                                <th className="w-[12%] px-4 py-4 font-semibold">Certificacion</th>
+                                <th className="w-[10%] px-4 py-4 text-center font-semibold">Estado</th>
+                                <th className="w-[6%] px-4 py-4"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {vehiculos.map((v, i) => (
+                            {paginatedVehiculos.map((v, i) => (
                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
+                                    <td className="px-4 py-4">
                                         <div>
                                             <div className="font-bold text-slate-800">{v.alias}</div>
                                             <div className="text-xs text-slate-500">No. {v.no}</div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">{v.modelo}</td>
-                                    <td className="px-6 py-4 font-semibold">{v.placa}</td>
-                                    <td className="px-6 py-4 text-slate-500 text-xs">{v.niv}</td>
-                                    <td className="px-6 py-4 text-slate-500">{v.tipo}</td>
-                                    <td className="px-6 py-4">
-                                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border ${
-                                            v.gps === 'ACTIVO' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                                            v.gps === 'INACTIVO' ? 'bg-rose-50 border-rose-200 text-rose-700' :
-                                            'bg-amber-50 border-amber-200 text-amber-700'
-                                        }`}>
-                                            <div className={`w-1.5 h-1.5 rounded-full ${
-                                                v.gps === 'ACTIVO' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]' :
-                                                v.gps === 'INACTIVO' ? 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]' :
-                                                'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]'
-                                            }`}></div>
-                                            <span className="whitespace-nowrap">
-                                                {v.gps === 'ACTIVO' ? 'Activo' : v.gps === 'INACTIVO' ? 'Inactivo' : 'Sin unidad'}
-                                            </span>
-                                        </div>
+                                    <td className="truncate px-4 py-4">{v.modelo}</td>
+                                    <td className="truncate px-4 py-4 font-semibold">{v.placa}</td>
+                                    <td className="truncate px-4 py-4 text-xs text-slate-500">{v.niv}</td>
+                                    <td className="truncate px-4 py-4 text-slate-500">{v.tipo}</td>
+                                    <td className="px-4 py-4 text-center">
+                                        <StatusBadge status={v.gps === 'ACTIVO' ? 'Activo' : v.gps === 'INACTIVO' ? 'Inactivo' : 'Sin unidad'} size="compact" />
                                     </td>
-                                    <td className="px-6 py-4 text-slate-500">{v.certificacion}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`text-xs font-bold ${
-                                            v.estado === 'ACTIVO' ? 'text-emerald-600' : 'text-rose-600'
-                                        }`}>{v.estado}</span>
+                                    <td className="truncate px-4 py-4 text-slate-500">{v.certificacion}</td>
+                                    <td className="px-4 py-4 text-center">
+                                        <StatusBadge status={v.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'} size="compact" />
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="px-4 py-4 text-right">
                                         <button 
                                             onClick={() => handleEditVehiculo(v)}
                                             className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors"
@@ -337,7 +332,7 @@ export default function CatalogoVehiculos() {
                             ]}
                         />
                     </div>
-                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando 1-{Math.min(rowsPerPage, 14)} de 14 vehículos</span>
+                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando {totalVehiculos === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, totalVehiculos)} de {totalVehiculos} vehículos</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-slate-600 font-medium">Página {currentPage} de {totalPages}</span>

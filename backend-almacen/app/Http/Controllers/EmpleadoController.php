@@ -49,7 +49,13 @@ class EmpleadoController extends Controller
             ->leftJoin('detalle_movimiento as dm', 'mi.id', '=', 'dm.movimiento_id')
             ->leftJoin('catalogo_articulos as ca', 'dm.articulo_id', '=', 'ca.id')
             ->leftJoin('inventario_series as serie', 'dm.serie_id', '=', 'serie.id')
-            ->where("mi.{$tipoMovimientoColumn}", 'prestamo')
+            ->where(function ($query) use ($tipoMovimientoColumn) {
+                $query->where("mi.{$tipoMovimientoColumn}", 'prestamo')
+                    ->orWhere(function ($demoQuery) use ($tipoMovimientoColumn) {
+                        $demoQuery->where("mi.{$tipoMovimientoColumn}", 'SALIDA')
+                            ->where('mi.notas', 'like', '[DEMO_PRESTAMO]%');
+                    });
+            })
             ->whereIn('mi.empleado_id', $empleadoIds)
             ->select(
                 'mi.empleado_id',

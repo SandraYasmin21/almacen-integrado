@@ -9,6 +9,7 @@ use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BitacoraViajeController;
 use App\Http\Controllers\CategoriaController;
+use App\Http\Controllers\CatalogoCentralController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\FlotillaDashboardController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\FlotillaKilometrajeController;
 use App\Http\Controllers\GastoExtraVehiculoController;
 use App\Http\Controllers\RegistroVehicularController;
 use App\Http\Controllers\VehiculoFlotillaController;
+use App\Http\Controllers\OrdenCompraController;
 
 // ============================================================
 // Rate Limiters (desde variables de entorno)
@@ -82,6 +84,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::get('export/pdf', [DashboardController::class, 'exportPDF']);
 
     Route::get('almacen/articulos', [AlmacenController::class, 'inventarioApi']);
+    Route::get('almacen/export/{format}', [AlmacenController::class, 'export']);
     Route::get('almacen/categorias', fn () => DB::table('categorias')->where('activo', true)->orderBy('nombre')->get());
     Route::get('almacen/ubicaciones', fn () => DB::table('stock_general')
         ->select('ubicacion', DB::raw('COUNT(*) as total_articulos'), DB::raw('SUM(cantidad) as total_unidades'))
@@ -100,10 +103,31 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::put('almacen/movimientos/{id}', [AlmacenController::class, 'actualizarMovimiento']);
     Route::delete('almacen/movimientos/{id}', [AlmacenController::class, 'eliminarMovimiento']);
 
+    // ── Órdenes de Compra ──────────────────────────────────────────────────────
+    Route::get('almacen/requisiciones', [OrdenCompraController::class, 'requisiciones']);
+    Route::get('almacen/ordenes-compra/export/excel', [OrdenCompraController::class, 'exportExcel']);
+    Route::get('almacen/ordenes-compra/export/pdf',   [OrdenCompraController::class, 'exportPdf']);
+    Route::get('almacen/ordenes-compra', [OrdenCompraController::class, 'index']);
+    Route::post('almacen/ordenes-compra', [OrdenCompraController::class, 'store']);
+    Route::get('almacen/ordenes-compra/{id}', [OrdenCompraController::class, 'show']);
+    Route::put('almacen/ordenes-compra/{id}/estado', [OrdenCompraController::class, 'updateEstado']);
+    // ──────────────────────────────────────────────────────────────────────────
+
     Route::get('proveedores', fn () => DB::table('proveedores')->where('activo', true)->orderBy('nombre_empresa')->get());
     Route::get('empleados/estados', [EmpleadoController::class, 'estadosApi']);
     Route::get('empleados', [EmpleadoController::class, 'apiIndex']);
     Route::apiResource('categorias', CategoriaController::class);
+
+    Route::prefix('catalogo')->group(function () {
+        Route::get('articulos', [CatalogoCentralController::class, 'articulos']);
+        Route::get('vehiculos', [CatalogoCentralController::class, 'vehiculos']);
+        Route::get('subcategorias', [CatalogoCentralController::class, 'subcategorias']);
+        Route::post('articulos', [CatalogoCentralController::class, 'storeArticulo']);
+        Route::put('articulos/{id}', [CatalogoCentralController::class, 'updateArticulo']);
+        Route::post('vehiculos', [CatalogoCentralController::class, 'storeVehiculo']);
+        Route::put('vehiculos/{id}', [CatalogoCentralController::class, 'updateVehiculo']);
+        Route::get('export/{tipo}/{formato}', [CatalogoCentralController::class, 'export']);
+    });
 });
 
 // ============================================================
@@ -133,4 +157,49 @@ Route::prefix('flotilla')->middleware(['auth:sanctum', 'throttle:flotilla'])->gr
 
     // Tabla de Kilometraje
     Route::get('kilometraje', [FlotillaKilometrajeController::class, 'index']);
+});
+
+// ============================================================
+// Rutas migradas desde almacen/routes/web.php
+// Estas rutas originalmente devolvian vistas de Inertia.
+// ============================================================
+use App\Http\Controllers\CatalogoController;
+use App\Http\Controllers\FlotillaController;
+// Nota: DashboardController, AlmacenController, EmpleadoController ya estan importados arriba.
+
+Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
+    Route::prefix('catalogo-web')->group(function () {
+        Route::get('/', [CatalogoController::class, 'index']);
+        Route::get('/crear', [CatalogoController::class, 'create']);
+        Route::post('/', [CatalogoController::class, 'store']);
+        Route::get('/{id}', [CatalogoController::class, 'show']);
+        Route::get('/{id}/editar', [CatalogoController::class, 'edit']);
+        Route::put('/{id}', [CatalogoController::class, 'update']);
+    });
+
+    Route::prefix('almacen-web')->group(function () {
+        Route::get('/', [AlmacenController::class, 'index']);
+        Route::get('/entrada', [AlmacenController::class, 'entradaForm']);
+        Route::get('/salida', [AlmacenController::class, 'salidaForm']);
+        Route::get('/prestamo', [AlmacenController::class, 'prestamoForm']);
+        Route::get('/movimientos', [AlmacenController::class, 'movimientosView']);
+        Route::get('/articulo/{id}', [AlmacenController::class, 'articuloDetalle']);
+        Route::get('/serie/{id}', [AlmacenController::class, 'serieDetalle']);
+        Route::get('/ubicacion/{ubicacion}', [AlmacenController::class, 'ubicacionDetalle']);
+    });
+
+    Route::prefix('empleados-web')->group(function () {
+        Route::get('/', [EmpleadoController::class, 'index']);
+        Route::get('/nuevo', [EmpleadoController::class, 'create']);
+        Route::post('/', [EmpleadoController::class, 'store']);
+        Route::get('/{id}', [EmpleadoController::class, 'show']);
+        Route::get('/{id}/editar', [EmpleadoController::class, 'edit']);
+        Route::put('/{id}', [EmpleadoController::class, 'update']);
+    });
+
+    Route::prefix('flotilla-web')->group(function () {
+        Route::get('/', [FlotillaController::class, 'index']);
+        Route::get('/vehiculo/{id}', [FlotillaController::class, 'show']);
+        Route::get('/bitacora', [FlotillaController::class, 'bitacora']);
+    });
 });

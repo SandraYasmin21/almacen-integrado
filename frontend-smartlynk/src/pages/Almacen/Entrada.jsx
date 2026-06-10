@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Barcode from "react-barcode";
 import { toast } from "sonner";
@@ -20,8 +20,72 @@ async function readJson(response) {
 }
 
 function SkusModal({ result, onClose }) {
-  const tipo = result?.articulo?.tipo_articulo ?? "herramienta";
-  const canPrint = tipo === "venta" || tipo === "mixto";
+  const printRef = useRef(null);
+  const skus = result?.skus_generados ?? result?.skus ?? [];
+  const isConsumible = result?.tipo === "consumible";
+
+  const imprimirLote = () => {
+    const etiquetas = printRef.current?.innerHTML;
+    const printWindow = window.open("", "_blank", "width=520,height=640");
+
+    if (!printWindow || !etiquetas) {
+      toast.error("No se pudo abrir la ventana de impresión");
+      return;
+    }
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Impresión de lote</title>
+          <style>
+            @page { size: 55mm 30mm; margin: 3mm; }
+            body {
+              margin: 0;
+              font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+              color: #0f172a;
+              text-align: center;
+            }
+            .etiqueta {
+              width: 50mm;
+              height: 25mm;
+              page-break-after: always;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              overflow: hidden;
+            }
+            .titulo {
+              max-width: 48mm;
+              margin: 0 0 2mm;
+              font-size: 9px;
+              font-weight: 800;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .sku {
+              margin: 1mm 0 0;
+              font-size: 8px;
+              font-weight: 700;
+              letter-spacing: 0.04em;
+            }
+            svg {
+              max-width: 46mm;
+              height: 14mm;
+            }
+          </style>
+        </head>
+        <body>${etiquetas}</body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    window.setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 150);
+  };
 
   return (
     <PremiumModal className="max-w-3xl p-0" onBackdropClick={onClose}>
@@ -29,7 +93,9 @@ function SkusModal({ result, onClose }) {
           <div>
             <h3 className="text-lg font-bold text-slate-900">Entrada registrada</h3>
             <p className="mt-1 text-sm text-slate-500">
-              Se generaron {result?.skus?.length ?? 0} SKU para {result?.articulo?.nombre}.
+              {isConsumible
+                ? `Se sumaron ${result?.cantidad ?? 0} unidades al stock general de ${result?.articulo?.nombre}.`
+                : `Se generaron ${skus.length} SKU únicos para ${result?.articulo?.nombre}.`}
             </p>
           </div>
           <button onClick={onClose} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
@@ -38,25 +104,40 @@ function SkusModal({ result, onClose }) {
         </div>
 
         <div className="max-h-[55vh] overflow-y-auto p-5">
-          <div className="grid gap-3 sm:grid-cols-2">
-            {(result?.skus ?? []).map((sku) => (
-              <div key={sku} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{sku}</p>
-                <div className="rounded-lg bg-white p-2">
-                  <Barcode value={sku} height={46} width={1.25} fontSize={12} margin={4} />
+          {isConsumible ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800">
+              Este artículo es consumible: no se generaron series individuales. Usa su SKU maestro para salidas por cantidad.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {skus.map((sku) => (
+                <div key={sku} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">{sku}</p>
+                  <div className="rounded-lg bg-white p-2">
+                    <Barcode value={sku} height={46} width={1.25} fontSize={12} margin={4} />
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+          <div ref={printRef} className="hidden">
+            {skus.map((sku) => (
+              <div key={sku} className="etiqueta">
+                <p className="titulo">{result?.articulo?.nombre}</p>
+                <Barcode value={sku} height={42} width={1.15} fontSize={0} margin={2} displayValue={false} />
+                <p className="sku">{sku}</p>
               </div>
             ))}
           </div>
         </div>
 
         <div className="flex flex-col gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end">
-          {canPrint && (
+          {skus.length > 0 && (
             <button
-              onClick={() => window.print()}
+              onClick={imprimirLote}
               className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700"
             >
-              Imprimir SKU para venta
+              🖨️ Imprimir [{skus.length}] Etiquetas de Serie
             </button>
           )}
           <button
@@ -74,9 +155,12 @@ export default function Entrada() {
   const navigate = useNavigate();
   const [articulos, setArticulos] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [ordenesCompra, setOrdenesCompra] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [vincularOC, setVincularOC] = useState(false);
+  const [ordenSeleccionada, setOrdenSeleccionada] = useState("");
   const [form, setForm] = useState({
     articulo_id: "",
     modelo: "",
@@ -85,6 +169,7 @@ export default function Entrada() {
     cantidad: 1,
     ubicacion: "",
     notas: "",
+    orden_compra_id: "",
   });
 
   const articuloSeleccionado = useMemo(
@@ -95,13 +180,16 @@ export default function Entrada() {
   useEffect(() => {
     const cargar = async () => {
       try {
-        const [rArt, rProv] = await Promise.all([
+        const [rArt, rProv, rOC] = await Promise.all([
           fetch(`${API}/api/almacen/articulos`, { headers: authHeaders() }),
           fetch(`${API}/api/proveedores`, { headers: authHeaders() }),
+          fetch(`${API}/api/almacen/ordenes-compra?estado=enviada`, { headers: authHeaders() }),
         ]);
         const [dArt, dProv] = await Promise.all([readJson(rArt), rProv.json()]);
+        const dOC = await rOC.json().catch(() => ({}));
         setArticulos(dArt.data ?? dArt ?? []);
         setProveedores(dProv.data ?? dProv ?? []);
+        setOrdenesCompra(dOC.data ?? []);
       } catch (error) {
         toast.error(error.message || "Error al cargar catálogos");
       } finally {
@@ -112,6 +200,19 @@ export default function Entrada() {
   }, []);
 
   const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+
+  const handleOrdenChange = (id) => {
+    setOrdenSeleccionada(id);
+    const orden = ordenesCompra.find(o => String(o.id) === String(id));
+    if (orden) {
+      setForm(prev => ({
+        ...prev,
+        proveedor_id: orden.proveedor_id || prev.proveedor_id,
+        cantidad: orden.cantidad || prev.cantidad,
+        orden_compra_id: id,
+      }));
+    }
+  };
 
   const handleArticuloChange = (id) => {
     const articulo = articulos.find((item) => String(item.id) === String(id));
@@ -149,8 +250,36 @@ export default function Entrada() {
     <>
       <div className="w-full space-y-6">
         <PremiumCard interactive={false}>
-        <form onSubmit={submit} className="p-6">
-          <div className="grid gap-5">
+        <form onSubmit={submit} className="p-6 space-y-6">
+
+          {/* Toggle de OC */}
+          <div className="flex items-center justify-between p-4 bg-blue-50/50 border border-blue-100 rounded-xl">
+            <div>
+              <h3 className="font-semibold text-slate-800 text-sm">Vincular a Orden de Compra</h3>
+              <p className="text-xs text-slate-500">Autocompleta los datos con la información del pedido</p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" checked={vincularOC} onChange={e => setVincularOC(e.target.checked)} />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+
+          {vincularOC && (
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2">
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Folio de Orden <span className="text-red-500">*</span></label>
+              <SelectPremium 
+                value={ordenSeleccionada}
+                onChange={handleOrdenChange}
+                placeholder="Seleccionar Orden de Compra..."
+                options={ordenesCompra.map(o => ({ value: String(o.id), label: o.folio ?? `OC-${o.id}` }))}
+              />
+            </div>
+          )}
+
+          {/* Tarjeta 1: Datos del Artículo */}
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 space-y-5">
+            <h4 className="font-bold text-slate-700 border-b border-slate-200 pb-2">Datos del Artículo</h4>
+            
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                 Artículo <span className="text-red-500">*</span>
@@ -172,7 +301,7 @@ export default function Entrada() {
                   value={form.modelo}
                   onChange={(event) => set("modelo", event.target.value)}
                   placeholder="Ej: TAL-20V-MAX"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
               <div>
@@ -191,6 +320,22 @@ export default function Entrada() {
               </div>
             </div>
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Categoría</label>
+                <input value={articuloSeleccionado?.categoria_nombre || ""} disabled className="h-12 w-full rounded-xl border border-slate-200 bg-slate-200/50 px-4 text-sm text-slate-500 cursor-not-allowed" placeholder="Autocompletado..." />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Subcategoría</label>
+                <input value={articuloSeleccionado?.subcategoria_nombre || ""} disabled className="h-12 w-full rounded-xl border border-slate-200 bg-slate-200/50 px-4 text-sm text-slate-500 cursor-not-allowed" placeholder="Autocompletado..." />
+              </div>
+            </div>
+          </div>
+
+          {/* Tarjeta 2: Datos de Recepción */}
+          <div className="bg-slate-50 p-5 rounded-xl border border-slate-100 space-y-5">
+            <h4 className="font-bold text-slate-700 border-b border-slate-200 pb-2">Datos de Recepción</h4>
+            
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Proveedor</label>
               <SelectPremium 
@@ -215,7 +360,7 @@ export default function Entrada() {
                   value={form.cantidad}
                   onChange={(event) => set("cantidad", event.target.value)}
                   required
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
               <div>
@@ -225,7 +370,7 @@ export default function Entrada() {
                   value={form.ubicacion}
                   onChange={(event) => set("ubicacion", event.target.value)}
                   placeholder="Ej: Estante A-3"
-                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
                 />
               </div>
             </div>
@@ -237,22 +382,22 @@ export default function Entrada() {
                 value={form.notas}
                 onChange={(event) => set("notas", event.target.value)}
                 placeholder="Observaciones, número de factura, etc."
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
+                className="w-full resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
               />
             </div>
+          </div>
 
-            <div className="flex gap-3 pt-2">
-              <Link to="/almacen" className="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-200">
-                Cancelar
-              </Link>
-              <button
-                type="submit"
-                disabled={loading || cargando}
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
-              >
-                {loading ? "Registrando..." : "Registrar Entrada"}
-              </button>
-            </div>
+          <div className="flex gap-3 pt-2">
+            <Link to="/almacen" className="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-200">
+              Cancelar
+            </Link>
+            <button
+              type="submit"
+              disabled={loading || cargando}
+              className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? "Registrando..." : "Registrar Entrada"}
+            </button>
           </div>
         </form>
         </PremiumCard>

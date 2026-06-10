@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { SelectPremium } from '../../components/ui/SelectPremium';
+import StatusBadge from '../../components/StatusBadge';
 
 const salidaSchema = z.object({
     vehiculo_id: z.string().min(1, 'Selecciona un vehículo'),
@@ -152,15 +153,7 @@ export default function BitacoraViajes() {
         setModalType('regreso');
     };
 
-    const getEstadoPill = (estado) => {
-        switch(estado) {
-            case 'Completado': return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-semibold">Completado</span>;
-            case 'En ruta': return <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">En ruta</span>;
-            case 'Pendiente': return <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-semibold">Pendiente</span>;
-            case 'Sin regreso': return <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Sin regreso</span>;
-            default: return null;
-        }
-    };
+    const getEstadoPill = (estado) => <StatusBadge status={estado} size="compact" />;
 
     const viajes = [
         { id: 1, vehiculo: 'Ranger Blanca', empleado: 'Garcia J.', salida: 'Hoy 08:15', km_ini: '45,230', motivo: 'Entrega material planta norte sector B', regreso: 'Hoy 14:30', km_fin: '45,550', recorrido: '320 km', estado: 'Completado', avatar: 'Ra' },
@@ -245,42 +238,42 @@ export default function BitacoraViajes() {
                     </div>
                 </div>
 
-                <div className="w-full overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[1200px] text-left text-sm text-slate-600 whitespace-nowrap">
+                <div className="w-full overflow-hidden">
+                    <table className="w-full table-fixed text-left text-sm text-slate-600">
                         <thead>
                             <tr className="bg-slate-50/50 border-b border-slate-100">
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Vehículo</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Empleado</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salida</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">KM Ini.</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Regreso</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">KM Fin.</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Recorrido</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
-                                <th className="py-3 px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Registrar Regreso</th>
-                                <th className="py-3 px-4 text-right"></th>
+                                <th className="w-[11%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Vehículo</th>
+                                <th className="w-[9%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Empleado</th>
+                                <th className="w-[8%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Salida</th>
+                                <th className="w-[7%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">KM Ini.</th>
+                                <th className="w-[16%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Motivo</th>
+                                <th className="w-[8%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Regreso</th>
+                                <th className="w-[7%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">KM Fin.</th>
+                                <th className="w-[8%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Recorrido</th>
+                                <th className="w-[10%] px-3 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Estado</th>
+                                <th className="w-[12%] px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Registrar Regreso</th>
+                                <th className="w-[4%] px-3 py-3 text-right"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
                             {viajes.map((item) => (
                                 <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="py-4 px-4">
-                                        <div className="font-semibold text-slate-800 text-sm">{item.vehiculo}</div>
+                                    <td className="px-3 py-4">
+                                        <div className="truncate text-sm font-semibold text-slate-800">{item.vehiculo}</div>
                                     </td>
-                                    <td className="py-4 px-4 text-sm text-slate-600">{item.empleado}</td>
-                                    <td className="py-4 px-4 text-sm font-medium text-slate-800 ">{item.salida}</td>
-                                    <td className="py-4 px-4 text-sm text-slate-500">{item.km_ini}</td>
-                                    <td className="py-4 px-4 text-xs text-slate-500 max-w-[200px] leading-tight whitespace-normal">{item.motivo}</td>
-                                    <td className="py-4 px-4 text-sm font-medium text-slate-600">{item.regreso}</td>
-                                    <td className="py-4 px-4 text-sm text-slate-500">{item.km_fin}</td>
-                                    <td className="py-4 px-4 text-sm font-bold text-emerald-600">{item.recorrido}</td>
-                                    <td className="py-4 px-4">
+                                    <td className="truncate px-3 py-4 text-sm text-slate-600">{item.empleado}</td>
+                                    <td className="truncate px-3 py-4 text-sm font-medium text-slate-800">{item.salida}</td>
+                                    <td className="truncate px-3 py-4 text-sm text-slate-500">{item.km_ini}</td>
+                                    <td className="truncate px-3 py-4 text-xs leading-tight text-slate-500">{item.motivo}</td>
+                                    <td className="truncate px-3 py-4 text-sm font-medium text-slate-600">{item.regreso}</td>
+                                    <td className="truncate px-3 py-4 text-sm text-slate-500">{item.km_fin}</td>
+                                    <td className="truncate px-3 py-4 text-sm font-bold text-emerald-600">{item.recorrido}</td>
+                                    <td className="px-3 py-4 text-center">
                                         {getEstadoPill(item.estado)}
                                     </td>
-                                    <td className="py-4 px-4 text-center">
+                                    <td className="px-3 py-4 text-center">
                                         {(item.estado === 'En ruta' || item.estado === 'Sin regreso') ? (
-                                            <button onClick={() => openRegresoModal(item)} className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition-all w-full shadow-sm flex items-center justify-center gap-1.5">
+                                            <button onClick={() => openRegresoModal(item)} className="mx-auto inline-flex min-w-[112px] items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 shadow-sm transition-all hover:bg-emerald-100">
                                                 <CheckIcon className="w-4 h-4" />
                                                 Regreso
                                             </button>
@@ -288,7 +281,7 @@ export default function BitacoraViajes() {
                                             <span className="text-slate-300 text-xs font-medium">-</span>
                                         )}
                                     </td>
-                                    <td className="py-4 px-4 text-right ">
+                                    <td className="px-3 py-4 text-right">
                                         <button 
                                             onClick={() => openEditSalida(item)}
                                             className="text-slate-500 hover:text-blue-600 text-xs font-semibold border border-slate-200 hover:border-blue-200 hover:bg-blue-50 px-2 py-1.5 rounded-lg transition-colors"

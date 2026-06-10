@@ -25,6 +25,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { SelectPremium } from '../../components/ui/SelectPremium';
+import StatusBadge from '../../components/StatusBadge';
 
 const mantenimientoSchema = z.object({
     vehiculo_id: z.string().min(1, "Obligatorio"),
@@ -90,7 +91,6 @@ export default function RegistroMantenimientos() {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
-    const totalPages = 5;
 
     // Filters State
     const [filters, setFilters] = useState({
@@ -149,7 +149,7 @@ export default function RegistroMantenimientos() {
     };
     
     // Datos falsos para la tabla
-    const registros = [
+    const allRegistros = [
         { vehiculo: "Ranger Blanca", fecha: "05/may/2026", tipo: "preventivo", detalle: "Cambio de aceite y filtros - servicio 10,000 km", km: "45,230 km", costo: "$1,850", subtipo: "Cambio de aceite" },
         { vehiculo: "Silverado 834", fecha: "02/may/2026", tipo: "correctivo", detalle: "Falla en sistema de frenos - cambio pastillas traseras", km: "38,100 km", costo: "$3,200", subtipo: "Frenos" },
         { vehiculo: "RAM Roja", fecha: "28/abr/2026", tipo: "lectura", detalle: "Lectura de odometro - sin novedades", km: "72,450 km", costo: "$0", subtipo: "Lectura" },
@@ -157,6 +157,16 @@ export default function RegistroMantenimientos() {
         { vehiculo: "Hilux Plata", fecha: "20/abr/2026", tipo: "correctivo", detalle: "Problema electrico - revision y reparacion de alternador", km: "28,700 km", costo: "$2,100", subtipo: "Sistema electrico" },
         { vehiculo: "NP300 Blanca", fecha: "15/abr/2026", tipo: "preventivo", detalle: "Servicio de 20,000 km - aceite, filtros, bujias", km: "20,050 km", costo: "$2,300", subtipo: "Servicio mayor" },
     ];
+
+    const totalRegistros = allRegistros.length;
+    const totalPages = Math.ceil(totalRegistros / rowsPerPage) || 1;
+    const paginatedRegistros = allRegistros.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [rowsPerPage, totalPages, currentPage]);
 
     return (
         <div className="pb-20">
@@ -243,33 +253,29 @@ export default function RegistroMantenimientos() {
                     <table className="w-full table-fixed text-left text-sm text-slate-600">
                         <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 font-semibold">Vehiculo</th>
-                                <th className="px-6 py-4 font-semibold">Fecha</th>
-                                <th className="px-6 py-4 font-semibold">Tipo</th>
-                                <th className="px-6 py-4 font-semibold">Detalle / Falla</th>
-                                <th className="px-6 py-4 font-semibold">Kilometraje</th>
-                                <th className="px-6 py-4 font-semibold">Costo</th>
-                                <th className="px-6 py-4 font-semibold">Subtipo</th>
-                                <th className="px-6 py-4"></th>
+                                <th className="w-[14%] px-4 py-4 font-semibold">Vehiculo</th>
+                                <th className="w-[12%] px-4 py-4 font-semibold">Fecha</th>
+                                <th className="w-[13%] px-4 py-4 text-center font-semibold">Tipo</th>
+                                <th className="w-[27%] px-4 py-4 font-semibold">Detalle / Falla</th>
+                                <th className="w-[11%] px-4 py-4 font-semibold">Kilometraje</th>
+                                <th className="w-[9%] px-4 py-4 text-right font-semibold">Costo</th>
+                                <th className="w-[9%] px-4 py-4 font-semibold">Subtipo</th>
+                                <th className="w-[5%] px-4 py-4"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {registros.map((r, i) => (
+                            {paginatedRegistros.map((r, i) => (
                                 <tr key={i} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 font-bold text-slate-800">{r.vehiculo}</td>
-                                    <td className="px-6 py-4 text-slate-500">{r.fecha}</td>
-                                    <td className="px-6 py-4">
-                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${
-                                            r.tipo === 'preventivo' ? 'bg-emerald-100 text-emerald-700' :
-                                            r.tipo === 'correctivo' ? 'bg-rose-100 text-rose-700' :
-                                            'bg-blue-100 text-blue-700'
-                                        }`}>{r.tipo}</span>
+                                    <td className="truncate px-4 py-4 font-bold text-slate-800">{r.vehiculo}</td>
+                                    <td className="truncate px-4 py-4 text-slate-500">{r.fecha}</td>
+                                    <td className="px-4 py-4 text-center">
+                                        <StatusBadge status={r.tipo} size="compact" />
                                     </td>
-                                    <td className="px-6 py-4 text-slate-600 truncate max-w-[200px]">{r.detalle}</td>
-                                    <td className="px-6 py-4 font-semibold text-slate-800">{r.km}</td>
-                                    <td className="px-6 py-4 font-bold text-slate-800">{r.costo}</td>
-                                    <td className="px-6 py-4 text-slate-500">{r.subtipo}</td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="truncate px-4 py-4 text-slate-600">{r.detalle}</td>
+                                    <td className="truncate px-4 py-4 font-mono text-xs font-semibold text-slate-800">{r.km}</td>
+                                    <td className="truncate px-4 py-4 text-right font-bold text-slate-800">{r.costo}</td>
+                                    <td className="truncate px-4 py-4 text-slate-500">{r.subtipo}</td>
+                                    <td className="px-4 py-4 text-right">
                                         <button 
                                             onClick={() => handleEditRegistro(r)}
                                             className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors"
@@ -300,7 +306,7 @@ export default function RegistroMantenimientos() {
                             ]}
                         />
                     </div>
-                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando 1-{Math.min(rowsPerPage, 6)} de 6 registros</span>
+                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando {totalRegistros === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, totalRegistros)} de {totalRegistros} registros</span>
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-slate-600 font-medium">Página {currentPage} de {totalPages}</span>
