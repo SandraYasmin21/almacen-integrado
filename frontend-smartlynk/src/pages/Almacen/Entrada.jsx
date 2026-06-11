@@ -204,14 +204,35 @@ export default function Entrada() {
   const handleOrdenChange = (id) => {
     setOrdenSeleccionada(id);
     const orden = ordenesCompra.find(o => String(o.id) === String(id));
-    if (orden) {
-      setForm(prev => ({
-        ...prev,
-        proveedor_id: orden.proveedor_id || prev.proveedor_id,
-        cantidad: orden.cantidad || prev.cantidad,
-        orden_compra_id: id,
-      }));
+    if (!orden) return;
+
+    // Tomar el primer detalle pendiente (cantidad_recibida < cantidad_solicitada)
+    const detallePendiente = (orden.detalles ?? []).find(
+      d => (d.cantidad_recibida ?? 0) < d.cantidad_solicitada
+    ) ?? (orden.detalles ?? [])[0];
+
+    const cantidadPendiente = detallePendiente
+      ? detallePendiente.cantidad_solicitada - (detallePendiente.cantidad_recibida ?? 0)
+      : 1;
+
+    // Autocompletar artículo si hay un detalle
+    let articuloAutocompletado = {};
+    if (detallePendiente?.articulo_id) {
+      const articulo = articulos.find(a => String(a.id) === String(detallePendiente.articulo_id));
+      articuloAutocompletado = {
+        articulo_id: String(detallePendiente.articulo_id),
+        modelo: articulo?.modelo ?? detallePendiente.modelo ?? "",
+        tipo_articulo: articulo?.tipo_articulo ?? "herramienta",
+      };
     }
+
+    setForm(prev => ({
+      ...prev,
+      proveedor_id: String(orden.proveedor_id ?? prev.proveedor_id),
+      cantidad: cantidadPendiente,
+      orden_compra_id: id,
+      ...articuloAutocompletado,
+    }));
   };
 
   const handleArticuloChange = (id) => {
@@ -265,14 +286,46 @@ export default function Entrada() {
           </div>
 
           {vincularOC && (
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2">
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Folio de Orden <span className="text-red-500">*</span></label>
-              <SelectPremium 
-                value={ordenSeleccionada}
-                onChange={handleOrdenChange}
-                placeholder="Seleccionar Orden de Compra..."
-                options={ordenesCompra.map(o => ({ value: String(o.id), label: o.folio ?? `OC-${o.id}` }))}
-              />
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 animate-in fade-in slide-in-from-top-2 space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Folio de Orden <span className="text-red-500">*</span></label>
+                <SelectPremium 
+                  value={ordenSeleccionada}
+                  onChange={handleOrdenChange}
+                  placeholder="Seleccionar Orden de Compra..."
+                  options={ordenesCompra.map(o => ({
+                    value: String(o.id),
+                    label: `${o.folio ?? `OC-${o.id}`}${o.proveedor ? ` — ${o.proveedor}` : ""}`
+                  }))}
+                />
+              </div>
+              {ordenSeleccionada && (() => {
+                const oc = ordenesCompra.find(o => String(o.id) === String(ordenSeleccionada));
+                const detalles = oc?.detalles ?? [];
+                if (detalles.length === 0) return null;
+                return (
+                  <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-800">
+                    <p className="font-bold mb-1">Artículos en esta OC:</p>
+                    <ul className="space-y-0.5">
+                      {detalles.map((d, i) => {
+                        const pendiente = d.cantidad_solicitada - (d.cantidad_recibida ?? 0);
+                        return (
+                          <li key={i} className="flex justify-between">
+                            <span className="truncate mr-2">{d.articulo_nombre}</span>
+                            <span className="font-semibold whitespace-nowrap">
+                              {pendiente > 0
+                                ? <span className="text-amber-700">{pendiente} pendientes</span>
+                                : <span className="text-emerald-700">✓ Completo</span>
+                              }
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    <p className="mt-2 text-slate-500">El formulario se autocompletó con el primer artículo pendiente.</p>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

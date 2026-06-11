@@ -61,6 +61,19 @@ const navItems = [
       { name: "Directorio", path: "/empleados/directorio" },
       { name: "Resguardos", path: "/empleados/resguardos" },
       { name: "Préstamos Pendientes", path: "/empleados/prestamos" },
+      { name: "Perfiles de Kiosco", path: "/empleados/perfiles-kiosco" },
+    ],
+  },
+  {
+    name: "Operaciones Externas",
+    icon: TruckIcon,
+    path: "/operaciones",
+    defaultPath: "/operaciones/gestor-documental",
+    section: "MÓDULOS",
+    subItems: [
+      { name: "Ventas Ocasionales", path: "/operaciones/ventas-ocasionales" },
+      { name: "Gestor Documental", path: "/operaciones/gestor-documental" },
+      { name: "Hojas de Entrega", path: "/operaciones/hojas-entrega" },
     ],
   },
   {

@@ -227,11 +227,6 @@ class AlmacenController extends Controller
         return Inertia::render('Almacen/Movimientos');
     }
 
-    public function inventarioApi()
-    {
-        return response()->json($this->getInventarioQuery()->get());
-    }
-
     public function export(Request $request, $format)
     {
         if ($format === 'excel') {

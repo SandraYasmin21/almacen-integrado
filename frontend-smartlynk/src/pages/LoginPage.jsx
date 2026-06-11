@@ -50,22 +50,22 @@ const IconShield = () => (
 // ─── Slides del panel izquierdo con textos dinámicos ──────────────────────────
 const SLIDES = [
     {
-        image: 'https://images.unsplash.com/photo-1553413077-190dd305871cw=1200&q=80',
+        image: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=1200&q=80',
         title: 'Control total de tu inventario',
         subtitle: 'Gestiona entradas, salidas y series en tiempo real.',
     },
     {
-        image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7w=1200&q=80',
+        image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=1200&q=80',
         title: 'Monitorea tu flotilla en tiempo real',
         subtitle: 'Bitácoras, mantenimientos y kilometraje en un solo lugar.',
     },
     {
-        image: 'https://images.unsplash.com/photo-1518770660439-4636190af475w=1200&q=80',
+        image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&q=80',
         title: 'Operaciones sin interrupciones',
         subtitle: 'Tecnología robusta y segura para empresas que no pueden parar.',
     },
     {
-        image: 'https://images.unsplash.com/photo-1565891741441-64926e441838w=1200&q=80',
+        image: 'https://images.unsplash.com/photo-1565891741441-64926e441838?w=1200&q=80',
         title: 'Reportes y estadísticas al instante',
         subtitle: 'Toma decisiones basadas en datos reales.',
     },
