@@ -391,15 +391,23 @@ export default function Entrada() {
             
             <div>
               <label className="mb-1.5 block text-sm font-semibold text-slate-700">Proveedor</label>
-              <SelectPremium 
-                value={form.proveedor_id || "ninguno"} 
-                onChange={(value) => set("proveedor_id", value === "ninguno" ? "" : value)} 
-                placeholder="Sin proveedor / No aplica"
-                options={[
-                  { value: "ninguno", label: "Sin proveedor / No aplica" },
-                  ...proveedores.map((proveedor) => ({ value: String(proveedor.id), label: proveedor.nombre_empresa }))
-                ]}
-              />
+              {vincularOC && ordenSeleccionada ? (
+                <input
+                  value={ordenesCompra.find(o => String(o.id) === String(ordenSeleccionada))?.proveedor || "Sin proveedor asignado en la OC"}
+                  disabled
+                  className="h-12 w-full rounded-xl border border-slate-200 bg-slate-200/50 px-4 text-sm text-slate-500 cursor-not-allowed"
+                />
+              ) : (
+                <SelectPremium 
+                  value={form.proveedor_id || "ninguno"} 
+                  onChange={(value) => set("proveedor_id", value === "ninguno" ? "" : value)} 
+                  placeholder="Sin proveedor / No aplica"
+                  options={[
+                    { value: "ninguno", label: "Sin proveedor / No aplica" },
+                    ...proveedores.map((proveedor) => ({ value: String(proveedor.id), label: proveedor.nombre_empresa }))
+                  ]}
+                />
+              )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">

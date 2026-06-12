@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { Eye, PackageMinus, ShoppingCart } from "lucide-react";
 import { DataTableShell, ExportButtons, dataTableClass } from "../../components/ui/premium";
 import { SelectPremium } from "../../components/ui/SelectPremium";
 
@@ -57,8 +58,9 @@ function ModalSalida({ articulo, empleados, onClose, onSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative z-10 bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-base font-semibold text-slate-800">Registrar Salida</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">×</button>
@@ -304,9 +306,10 @@ export default function AlmacenIndex() {
               <table className={dataTableClass()}>
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr className="text-xs text-slate-500 uppercase tracking-wide">
-                    {["Artículo","Categoría","Ubicación","Stock","Mínimo","Estado","Acciones"].map(h => (
+                    {["Artículo","Categoría","Ubicación","Stock","Mínimo","Estado"].map(h => (
                       <th key={h} className="px-5 py-3 text-left font-semibold">{h}</th>
                     ))}
+                    <th className="px-5 py-3 text-right font-semibold">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
@@ -357,21 +360,32 @@ export default function AlmacenIndex() {
                            <Semaforo cantidad={art.cantidad ?? 0} minimo={art.stock_minimo} />
                         )}
                       </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => {
-                            if ((art.cantidad ?? 0) === 0) {
-                              navigate('/almacen/ordenes-compra', { state: { precargarArticulo: art } });
-                            } else {
-                              navigate('/catalogo', { state: { openArticulo: art } });
-                            }
-                          }}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition text-xs font-medium">
-                            {(art.cantidad ?? 0) === 0 ? "Comprar" : "Ver"}
-                          </button>
-                          <button onClick={() => setModalArticulo(art)}
-                            className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition text-xs">
-                            Salida
+                      <td className="px-5 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {(art.cantidad ?? 0) === 0 ? (
+                            <button
+                              onClick={() => navigate('/almacen/ordenes-compra', { state: { precargarArticulo: art } })}
+                              title="Comprar urgentemente"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-full transition-colors"
+                            >
+                              <ShoppingCart className="w-3.5 h-3.5" />
+                              Comprar
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate('/catalogo', { state: { openArticulo: art } })}
+                              title="Ver detalle"
+                              className="p-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setModalArticulo(art)}
+                            title="Registrar salida"
+                            className="p-1.5 rounded-md text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                          >
+                            <PackageMinus className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

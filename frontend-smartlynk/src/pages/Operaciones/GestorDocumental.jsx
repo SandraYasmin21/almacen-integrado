@@ -53,14 +53,7 @@ export default function GestorDocumental() {
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-indigo-600">
-          <DocumentTextIcon className="h-5 w-5" />
-          <span>Gestor Documental</span>
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Control de Facturas y Documentos</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Repositorio digital. Sube, organiza y empaqueta en .zip las facturas y comprobantes del almacén.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Control de Facturas</h1>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">

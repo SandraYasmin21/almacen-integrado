@@ -56,14 +56,7 @@ export default function PerfilesKiosco() {
       {/* Header */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-600">
-            <ShieldCheckIcon className="h-5 w-5" />
-            <span>Módulo de Seguridad</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Perfiles de Kiosco</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Administra los accesos de los empleados a los Kioscos de Autoservicio.
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Control de Usuarios</h1>
         </div>
         <button
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-blue-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2"

@@ -230,6 +230,20 @@ export default function CatalogoCentral() {
 
   useEffect(() => {
     loadSubcategorias();
+    
+    // Pre-cargar vehículos para que las estadísticas aparezcan desde el inicio
+    async function preloadVehiculos() {
+      try {
+        const response = await apiFetch(`${API}/api/catalogo/vehiculos?page=1&per_page=10&q=`);
+        const payload = await response.json();
+        if (response.ok && payload.success !== false) {
+          setVehiculos(unwrapPagination(payload));
+        }
+      } catch (error) {
+        console.error("Error pre-cargando vehículos:", error);
+      }
+    }
+    preloadVehiculos();
   }, []);
 
   const location = useLocation();
@@ -249,7 +263,7 @@ export default function CatalogoCentral() {
     try {
       const params = new URLSearchParams({
         page: String(page),
-        per_page: "12",
+        per_page: "10",
         q: search.trim(),
       });
       const endpoint = activeTab === "articulos" ? "articulos" : "vehiculos";
@@ -599,10 +613,10 @@ export default function CatalogoCentral() {
 
       <DataTableShell>
         {activeTab === "articulos" ? (
-          <table className={dataTableClass()}>
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+          <table className="w-full table-fixed min-w-[900px] text-left text-sm text-slate-600 whitespace-normal">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="w-[24%] px-5 py-4">Artículo</th>
+                <th className="w-[24%] px-5 py-4 whitespace-normal">Artículo</th>
                 <th className="w-[18%] px-5 py-4">Categoría</th>
                 <th className="w-[12%] px-5 py-4">Unidad</th>
                 <th className="w-[14%] px-5 py-4">Stock ideal</th>
@@ -625,10 +639,10 @@ export default function CatalogoCentral() {
                     <div className="truncate font-semibold text-slate-700">{row.categoria || "Sin categoría"}</div>
                     <div className="truncate text-xs text-slate-500">{row.subcategoria || "Sin subcategoría"}</div>
                   </td>
-                  <td className="truncate px-5 py-4">{row.unidad_medida}</td>
-                  <td className="truncate px-5 py-4 font-semibold text-slate-900">{row.stock_minimo}</td>
-                  <td className="truncate px-5 py-4 font-semibold text-blue-700">{row.stock_actual}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 whitespace-nowrap">{row.unidad_medida}</td>
+                  <td className="px-5 py-4 whitespace-nowrap font-semibold text-slate-900">{row.stock_minimo}</td>
+                  <td className="px-5 py-4 whitespace-nowrap font-semibold text-blue-700">{row.stock_actual}</td>
+                  <td className="px-5 py-4 whitespace-nowrap">
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                       {String(row.tipo_articulo || (row.es_consumible ? "venta" : "herramienta")).replace(/^\w/, (letter) =>
                         letter.toUpperCase()
@@ -649,10 +663,10 @@ export default function CatalogoCentral() {
             </tbody>
           </table>
         ) : (
-          <table className={dataTableClass()}>
-            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+          <table className="w-full table-fixed min-w-[900px] text-left text-sm text-slate-600 whitespace-normal">
+            <thead className="border-b border-slate-200 bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="w-[24%] px-5 py-4">Vehículo</th>
+                <th className="w-[24%] px-5 py-4 whitespace-normal">Vehículo</th>
                 <th className="w-[14%] px-5 py-4">Placas</th>
                 <th className="w-[18%] px-5 py-4">NIV</th>
                 <th className="w-[14%] px-5 py-4">Tipo</th>
@@ -668,10 +682,10 @@ export default function CatalogoCentral() {
                     <div className="truncate font-bold text-slate-900">{row.nombre}</div>
                     <div className="truncate text-xs text-slate-500">{row.modelo || "Sin modelo"}</div>
                   </td>
-                  <td className="truncate px-5 py-4 font-semibold text-slate-900">{row.placas || "-"}</td>
-                  <td className="truncate px-5 py-4">{row.numero_serie || "-"}</td>
-                  <td className="truncate px-5 py-4">{row.tipo_vehiculo || "-"}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-5 py-4 whitespace-nowrap font-semibold text-slate-900">{row.placas || "-"}</td>
+                  <td className="px-5 py-4 whitespace-nowrap">{row.numero_serie || "-"}</td>
+                  <td className="px-5 py-4 whitespace-nowrap">{row.tipo_vehiculo || "-"}</td>
+                  <td className="px-5 py-4 whitespace-nowrap">
                     <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
                       {row.estado_gps || "Sin Unidad"}
                     </span>

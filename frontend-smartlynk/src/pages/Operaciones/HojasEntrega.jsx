@@ -8,14 +8,7 @@ export default function HojasEntrega() {
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-blue-600">
-          <TruckIcon className="h-5 w-5" />
-          <span>Control Logístico</span>
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Hojas de Entrega a Externos</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Registra salidas de mercancía entregada a personal externo (contratistas, paqueterías, clientes) y genera el acuse en PDF.
-        </p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Hojas de entrega Externos</h1>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">

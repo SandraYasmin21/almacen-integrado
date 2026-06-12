@@ -35,7 +35,6 @@ import KioscoResguardos from './pages/Kiosco/KioscoResguardos';
 import RegistroMovimientosPage from './pages/Almacen/Movimientos/RegistroMovimientosPage';
 import DetalleMovimientoMostrador from './pages/Mostrador/DetalleMovimiento';
 import TerminalEscaner from './pages/Mostrador/TerminalEscaner';
-import DespachoVentas from './pages/Mostrador/DespachoVentas';
 import ResguardosPrestamos from './pages/Mostrador/ResguardosPrestamos';
 import Devoluciones from './pages/Mostrador/Devoluciones';
 
@@ -69,6 +68,7 @@ function App() {
           <Route path="/almacen/ordenes-compra" element={<OrdenesCompra />} />
           <Route path="/almacen/ajustes" element={<AjustesAuditorias />} />
           <Route path="/almacen/movimientos" element={<Navigate to="/almacen/ajustes" replace />} />
+          <Route path="/almacen/historial" element={<RegistroMovimientosPage />} />
           
           <Route path="/empleados" element={<Navigate to="/empleados/directorio" replace />} />
           <Route path="/empleados/directorio" element={<EmpleadosIndex view="directorio" />} />
@@ -81,10 +81,8 @@ function App() {
           <Route path="/mostrador">
             <Route index element={<Navigate to="/mostrador/terminal" replace />} />
             <Route path="terminal" element={<TerminalEscaner />} />
-            <Route path="despacho" element={<DespachoVentas />} />
             <Route path="resguardos" element={<ResguardosPrestamos />} />
             <Route path="devoluciones" element={<Devoluciones />} />
-            <Route path="historial" element={<RegistroMovimientosPage />} />
             <Route path="entrada" element={<Navigate to="/almacen/recepcion" replace />} />
             <Route path="salida" element={<Navigate to="/mostrador/terminal" replace />} />
             <Route path="registrar" element={<Navigate to="/mostrador/terminal" replace />} />

@@ -404,7 +404,7 @@ export default function Dashboard() {
                 <h2 className="text-lg font-bold text-slate-900">Bitacora Diaria</h2>
                 <p className="mt-1 text-sm text-slate-500">Movimientos recientes del almacen</p>
               </div>
-              <Link to="/almacen/movimientos" className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-100">
+              <Link to="/mostrador/resguardos" className="rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-600 transition-colors hover:bg-blue-100">
                 Ver historial
               </Link>
             </div>
@@ -455,14 +455,11 @@ export default function Dashboard() {
             <Panel className="p-6">
               <h2 className="text-lg font-bold text-slate-900">Acciones Rapidas</h2>
               <div className="mt-5 grid gap-3">
-                <Link to="/almacen/entrada" className="flex items-center gap-3 rounded-xl bg-blue-50 px-4 py-3 font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                <Link to="/almacen/recepcion" className="flex items-center gap-3 rounded-xl bg-blue-50 px-4 py-3 font-bold text-blue-700 transition-colors hover:bg-blue-100">
                   <ArrowDownToLine size={20} /> Registrar Entrada
                 </Link>
-                <Link to="/almacen/salida" className="flex items-center gap-3 rounded-xl bg-rose-50 px-4 py-3 font-bold text-rose-700 transition-colors hover:bg-rose-100">
+                <Link to="/mostrador/terminal" className="flex items-center gap-3 rounded-xl bg-rose-50 px-4 py-3 font-bold text-rose-700 transition-colors hover:bg-rose-100">
                   <ArrowUpFromLine size={20} /> Registrar Salida
-                </Link>
-                <Link to="/mostrador/resguardos" className="flex items-center gap-3 rounded-xl bg-amber-50 px-4 py-3 font-bold text-amber-700 transition-colors hover:bg-amber-100">
-                  <ArrowRightLeft size={20} /> Nuevo Prestamo
                 </Link>
               </div>
             </Panel>

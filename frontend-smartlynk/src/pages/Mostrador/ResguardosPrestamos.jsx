@@ -6,8 +6,7 @@ export default function ResguardosPrestamos() {
     <div className="space-y-6 px-6 py-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Bitácora de Resguardos y Préstamos</h1>
-          <p className="mt-1 text-sm text-slate-500">Monitor de auditoría (Solo Lectura). Actividad registrada desde Kioscos.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Historial de Resguardos y prestamos</h1>
         </div>
         <ExportButtons onPdf={() => {}} onExcel={() => {}} pdfLabel="Ticket PDF" excelLabel="Exportar Excel" />
       </div>

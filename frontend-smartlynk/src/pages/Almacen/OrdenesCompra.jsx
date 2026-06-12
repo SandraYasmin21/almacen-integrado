@@ -502,8 +502,7 @@ export default function OrdenesCompra() {
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between print:hidden">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900">Órdenes de Compra</h1>
-          <p className="mt-1 text-sm text-slate-500">Pedidos a proveedores para reabastecimiento de almacén.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Solicitud de materiales</h1>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {/* Requisiciones */}

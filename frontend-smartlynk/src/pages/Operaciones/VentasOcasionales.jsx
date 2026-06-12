@@ -8,14 +8,7 @@ export default function VentasOcasionales() {
   return (
     <div className="mx-auto max-w-5xl p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <div className="mb-2 flex items-center gap-2 text-sm font-medium text-emerald-600">
-          <CurrencyDollarIcon className="h-5 w-5" />
-          <span>Módulo Administrativo</span>
-        </div>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Ventas Ocasionales (Liquidación)</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Registra la salida definitiva de artículos vendidos. Se descontarán permanentemente del inventario.
-        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">

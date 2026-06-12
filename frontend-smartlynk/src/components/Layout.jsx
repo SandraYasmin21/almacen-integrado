@@ -33,8 +33,9 @@ const navItems = [
     subItems: [
       { name: "Estado de Stock", path: "/almacen/stock" },
       { name: "Recepción de Mercancía", path: "/almacen/recepcion" },
-      { name: "Órdenes de Compra", path: "/almacen/ordenes-compra" },
+      { name: "Solicitud de materiales", path: "/almacen/ordenes-compra" },
       { name: "Ajustes y Auditorías", path: "/almacen/ajustes" },
+      { name: "Historial y Bitácora", path: "/almacen/historial" },
     ],
   },
   {
@@ -45,10 +46,8 @@ const navItems = [
     section: "MÓDULOS",
     subItems: [
       { name: "Terminal de Escáner", path: "/mostrador/terminal" },
-      { name: "Despacho de Ventas", path: "/mostrador/despacho" },
-      { name: "Resguardos y Préstamos", path: "/mostrador/resguardos" },
+      { name: "Historial de Resguardos y prestamos", path: "/mostrador/resguardos" },
       { name: "Devoluciones", path: "/mostrador/devoluciones" },
-      { name: "Historial y Bitácora", path: "/mostrador/historial" },
     ],
   },
   {
@@ -61,7 +60,7 @@ const navItems = [
       { name: "Directorio", path: "/empleados/directorio" },
       { name: "Resguardos", path: "/empleados/resguardos" },
       { name: "Préstamos Pendientes", path: "/empleados/prestamos" },
-      { name: "Perfiles de Kiosco", path: "/empleados/perfiles-kiosco" },
+      { name: "Control de Usuarios", path: "/empleados/perfiles-kiosco" },
     ],
   },
   {
@@ -72,8 +71,8 @@ const navItems = [
     section: "MÓDULOS",
     subItems: [
       { name: "Ventas Ocasionales", path: "/operaciones/ventas-ocasionales" },
-      { name: "Gestor Documental", path: "/operaciones/gestor-documental" },
-      { name: "Hojas de Entrega", path: "/operaciones/hojas-entrega" },
+      { name: "Control de Facturas", path: "/operaciones/gestor-documental" },
+      { name: "Hojas de entrega Externos", path: "/operaciones/hojas-entrega" },
     ],
   },
   {
