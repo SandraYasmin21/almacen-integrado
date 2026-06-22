@@ -14,6 +14,8 @@ import DashboardFlotilla from './pages/flotilla/DashboardFlotilla';
 import Kilometraje from './pages/flotilla/Kilometraje';
 
 import DashboardAlmacen from './pages/Dashboard/Index';
+
+import AlmacenDashboard from "./pages/Almacen/AlmacenDashboard"; 
 import AlmacenIndex from './pages/Almacen/Index';
 import AlmacenEntrada from './pages/Almacen/Entrada';
 import OrdenesCompra from './pages/Almacen/OrdenesCompra';
@@ -45,6 +47,7 @@ function App() {
           <Route path="/almacen/stock" element={<AlmacenIndex />} />
           <Route path="/almacen/articulos" element={<Navigate to="/almacen/stock" replace />} />
           <Route path="/almacen/recepcion" element={<AlmacenEntrada />} />
+          <Route path="/almacen/dashboard" element={<AlmacenDashboard />} />
           <Route path="/almacen/entrada" element={<Navigate to="/almacen/recepcion" replace />} />
           <Route path="/almacen/salida" element={<Navigate to="/mostrador/terminal" replace />} />
           <Route path="/almacen/ordenes-compra" element={<OrdenesCompra />} />

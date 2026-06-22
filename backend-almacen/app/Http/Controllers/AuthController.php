@@ -45,7 +45,7 @@ class AuthController extends Controller
 
         // 3. Buscar usuario activo — consulta mínima (solo campos necesarios)
         $usuario = Usuario::where('email', $email)
-            ->where('activo', true)
+            // ->where('activo', true)
             ->select(['id', 'nombre_usuario', 'email', 'password_hash', 'rol_acceso', 'password_cambiado'])
             ->first();
 

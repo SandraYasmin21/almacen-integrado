@@ -21,12 +21,12 @@ export default defineConfig({
     proxy: {
       // Redirige /api/* y /sanctum/* al backend Laravel
       '/api': {
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
       },
       '/sanctum': {
-        target: 'http://127.0.0.1:8001',
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
         secure: false,
       },

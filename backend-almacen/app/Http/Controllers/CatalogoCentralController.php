@@ -103,12 +103,13 @@ class CatalogoCentralController extends Controller
     {
         $validated = $this->validateArticulo($request);
 
-        $id = DB::transaction(function () use ($validated) {
+        $id = DB::transaction(function () use ($validated, $request) {
             $subcategoriaId = $this->resolveSubcategoria($validated);
 
             $data = [
                 'subcategoria_id' => $subcategoriaId,
                 'nombre' => $this->clean($validated['nombre']),
+                'marca' => $this->nullableClean($request->input('marca')),
                 'modelo' => $this->nullableClean($validated['modelo'] ?? null),
                 'requiere_serie' => (bool) ($validated['requiere_serie'] ?? false),
                 'es_consumible' => (bool) ($validated['es_consumible'] ?? false),
@@ -136,7 +137,7 @@ class CatalogoCentralController extends Controller
     {
         $validated = $this->validateArticulo($request, $id, true);
 
-        DB::transaction(function () use ($validated, $id) {
+        DB::transaction(function () use ($validated, $id, $request) {
             $data = [];
 
             $subcategoriaId = $this->resolveSubcategoria($validated);
@@ -156,6 +157,10 @@ class CatalogoCentralController extends Controller
                         ? strtoupper($this->clean($validated[$field]))
                         : $this->clean($validated[$field]);
                 }
+            }
+
+            if ($request->has('marca')) {
+                $data['marca'] = $this->nullableClean($request->input('marca'));
             }
 
             if (array_key_exists('modelo', $validated)) {
@@ -263,6 +268,7 @@ class CatalogoCentralController extends Controller
         abort_unless(in_array($tipo, ['articulos', 'vehiculos'], true), 404);
         abort_unless(in_array($formato, ['excel', 'pdf'], true), 404);
 
+        // Obtenemos los datos (articulosQuery ya trae 'marca' en su SELECT)
         $rows = $tipo === 'articulos'
             ? $this->articulosQuery()->orderBy('ca.nombre')->get()
             : DB::table('vehiculos_flotilla as vf')
@@ -281,6 +287,7 @@ class CatalogoCentralController extends Controller
 
         $filename = "catalogo_{$tipo}_" . Carbon::now()->format('Ymd_His');
 
+        // Generación de PDF (Pasa los datos a la vista)
         if ($formato === 'pdf') {
             $html = view('pdf.catalogo-central', [
                 'tipo' => $tipo,
@@ -291,12 +298,16 @@ class CatalogoCentralController extends Controller
             return Pdf::loadHTML($html)->setPaper('a4', 'landscape')->download($filename . '.pdf');
         }
 
+        // Generación de Excel
         $data = [];
         if ($tipo === 'articulos') {
-            $headings = ['Articulo', 'Modelo', 'SKU maestro', 'Categoria', 'Subcategoria', 'Unidad', 'Stock ideal', 'Stock actual', 'Tipo'];
+            // 1. AGREGAMOS 'Marca' A LAS CABECERAS DEL EXCEL
+            $headings = ['Artículo', 'Marca', 'Modelo', 'SKU Maestro', 'Categoría', 'Subcategoría', 'Unidad', 'Stock Mínimo', 'Stock Actual', 'Tipo'];
+            
             foreach ($rows as $row) {
                 $data[] = [
                     $row->nombre,
+                    $row->marca, // 2. AGREGAMOS LA MARCA EN LOS DATOS
                     $row->modelo,
                     $row->sku_maestro,
                     $row->categoria,
@@ -308,7 +319,7 @@ class CatalogoCentralController extends Controller
                 ];
             }
         } else {
-            $headings = ['Vehiculo', 'Modelo', 'Placas', 'NIV', 'Tipo', 'GPS', 'Estado'];
+            $headings = ['Vehículo', 'Modelo', 'Placas', 'NIV', 'Tipo', 'GPS', 'Estado'];
             foreach ($rows as $row) {
                 $data[] = [
                     $row->nombre,
@@ -325,39 +336,67 @@ class CatalogoCentralController extends Controller
         return Excel::download(new GenericExport($data, $headings), $filename . '.xlsx');
     }
 
-    private function articulosQuery()
+    public function deleteArticulo(int $id): JsonResponse
     {
-        $groupBy = [
-            'ca.id',
-            'ca.nombre',
-            'ca.modelo',
-            'ca.subcategoria_id',
-            'ca.unidad_medida',
-            'ca.stock_minimo',
-            'ca.requiere_serie',
-            'ca.es_consumible',
-            'sc.nombre',
-            'cat.nombre',
+        $articulo = DB::table('catalogo_articulos')->where('id', $id)->whereNull('deleted_at')->first();
+
+        if (!$articulo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Artículo no encontrado o ya fue eliminado.',
+            ], 404);
+        }
+
+        // Validación de seguridad adicional desde el Backend
+        $stockGeneral = DB::table('stock_general')
+            ->where('articulo_id', $id)
+            ->whereNull('deleted_at')
+            ->sum('cantidad');
+            
+        $stockSeries = DB::table('inventario_series')
+            ->where('articulo_id', $id)
+            ->where('estado', 'DISPONIBLE')
+            ->whereNull('deleted_at')
+            ->count();
+
+        $totalStock = $stockGeneral + $stockSeries;
+
+        if ($totalStock > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "No se puede eliminar. El artículo aún tiene $totalStock unidades en inventario.",
+            ], 422);
+        }
+
+        // SOFT DELETE: Establecemos la fecha de borrado y anexamos "(ELIMINADO)"
+        // Esto previene cualquier colisión en índices únicos de SQL y deja el nombre disponible para el nuevo registro.
+        $updateData = [
+            'deleted_at' => now(),
+            'nombre' => DB::raw("CONCAT(nombre, ' (ELIMINADO-', id, ')')")
         ];
 
-        if (Schema::hasColumn('catalogo_articulos', 'tipo_articulo')) {
-            $groupBy[] = 'ca.tipo_articulo';
-        }
-
+        // Liberamos también el SKU maestro si existe la columna
         if (Schema::hasColumn('catalogo_articulos', 'sku_maestro')) {
-            $groupBy[] = 'ca.sku_maestro';
+            $updateData['sku_maestro'] = DB::raw("CONCAT(sku_maestro, '-DEL')");
         }
 
+        DB::table('catalogo_articulos')
+            ->where('id', $id)
+            ->update($updateData);
+
+        return $this->ok('Artículo eliminado del catálogo correctamente.');
+    }
+    
+    private function articulosQuery()
+    {
         return DB::table('catalogo_articulos as ca')
             ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
             ->leftJoin('categorias as cat', 'sc.categoria_id', '=', 'cat.id')
-            ->leftJoin('stock_general as sg', function ($join) {
-                $join->on('ca.id', '=', 'sg.articulo_id')->whereNull('sg.deleted_at');
-            })
             ->whereNull('ca.deleted_at')
             ->select(
                 'ca.id',
                 'ca.nombre',
+                'ca.marca',
                 'ca.modelo',
                 'ca.subcategoria_id',
                 'ca.unidad_medida',
@@ -368,9 +407,14 @@ class CatalogoCentralController extends Controller
                 DB::raw($this->masterSkuExpression() . ' as sku_maestro'),
                 'sc.nombre as subcategoria',
                 'cat.nombre as categoria',
-                DB::raw('COALESCE(SUM(sg.cantidad), 0) as stock_actual')
-            )
-            ->groupBy($groupBy);
+                // SUMA MAESTRA DEL STOCK: Consumibles (stock_general) + Equipos únicos (inventario_series)
+                DB::raw("(
+                    (SELECT COALESCE(SUM(cantidad), 0) FROM stock_general WHERE articulo_id = ca.id AND deleted_at IS NULL) 
+                    + 
+                    (SELECT COUNT(id) FROM inventario_series WHERE articulo_id = ca.id AND estado = 'DISPONIBLE' AND deleted_at IS NULL)
+                ) as stock_actual")
+            );
+            // Ya no utilizamos groupBy() para evitar conflictos de paginación o agrupación.
     }
 
     private function validateArticulo(Request $request, ?int $id = null, bool $partial = false): array
@@ -378,7 +422,13 @@ class CatalogoCentralController extends Controller
         $required = $partial ? 'sometimes' : 'required';
 
         return $request->validate([
-            'nombre' => [$required, 'string', 'max:150'],
+            // Agregamos la regla Rule::unique ignorando los soft deletes
+            'nombre' => [
+                $required, 
+                'string', 
+                'max:150',
+                Rule::unique('catalogo_articulos', 'nombre')->ignore($id)->whereNull('deleted_at')
+            ],
             'modelo' => ['nullable', 'string', 'max:150'],
             'subcategoria_id' => ['nullable', 'integer', Rule::exists('subcategorias', 'id')->whereNull('deleted_at')],
             'nueva_categoria' => ['nullable', 'string', 'max:150'],

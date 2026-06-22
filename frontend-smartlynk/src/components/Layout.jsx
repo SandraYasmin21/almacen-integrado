@@ -31,11 +31,12 @@ const navItems = [
     defaultPath: "/almacen/stock",
     section: "MÓDULOS",
     subItems: [
-      { name: "Estado de Stock", path: "/almacen/stock" },
-      { name: "Recepción de Mercancía", path: "/almacen/recepcion" },
-      { name: "Órdenes de Compra", path: "/almacen/ordenes-compra" },
+      { name: "Dashboard", path: "/almacen/dashboard" },
+      { name: "Inventario", path: "/almacen/stock" },
+      { name: "Entradas", path: "/almacen/recepcion" },
+      // { name: "Órdenes de Compra", path: "/almacen/ordenes-compra" },
       { name: "Ajustes y Auditorías", path: "/almacen/ajustes" },
-    ],
+    ], 
   },
   {
     name: "Mostrador",
@@ -44,8 +45,8 @@ const navItems = [
     defaultPath: "/mostrador/terminal",
     section: "MÓDULOS",
     subItems: [
-      { name: "Terminal de Escáner", path: "/mostrador/terminal" },
-      { name: "Despacho de Ventas", path: "/mostrador/despacho" },
+      { name: "Salidas", path: "/mostrador/terminal" },
+      // { name: "Despacho de Ventas", path: "/mostrador/despacho" },
       { name: "Resguardos y Préstamos", path: "/mostrador/resguardos" },
       { name: "Devoluciones", path: "/mostrador/devoluciones" },
       { name: "Historial y Bitácora", path: "/mostrador/historial" },

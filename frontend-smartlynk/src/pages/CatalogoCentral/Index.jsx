@@ -13,6 +13,8 @@ import {
   Search,
   Wrench,
   AlertCircle,
+  Eye,
+  Trash2,
 } from "lucide-react";
 
 import { apiFetch, authHeaders } from "../../lib/auth";
@@ -58,6 +60,7 @@ const PRESET_CATEGORIES = {
 
 const emptyArticulo = {
   nombre: "",
+  marca: "",
   modelo: "",
   subcategoria_id: "",
   categoria_seleccionada: "",
@@ -201,7 +204,14 @@ export default function CatalogoCentral() {
   const [errors, setErrors] = useState({});
   const [skuResult, setSkuResult] = useState(null);
   const barcodeRef = useRef(null);
+  const detailBarcodeRef = useRef(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
+  const [detailItem, setDetailItem] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const activeRows = activeTab === "articulos" ? articulos : vehiculos;
 
   const stats = useMemo(() => {
@@ -311,6 +321,7 @@ export default function CatalogoCentral() {
       activeTab === "articulos"
           ? {
               nombre: row.nombre ?? "",
+              marca: row.marca ?? "",
               modelo: row.modelo ?? "",
               subcategoria_id: row.subcategoria_id ? String(row.subcategoria_id) : "",
               categoria_seleccionada: row.categoria ?? "",
@@ -342,13 +353,17 @@ export default function CatalogoCentral() {
     setModalOpen(true);
   }
 
-  function printSkuLabel() {
-    if (!skuResult?.sku_maestro) {
+  function printSkuLabel(customItem = null, customRef = null) {
+    // Si recibe parámetros (desde detalles), los usa. Si no, usa los del modal de guardado.
+    const item = customItem || skuResult;
+    const ref = customRef || barcodeRef;
+
+    if (!item?.sku_maestro) {
       toast.error("No hay SKU maestro disponible para imprimir");
       return;
     }
 
-    const barcodeMarkup = barcodeRef.current?.innerHTML;
+    const barcodeMarkup = ref.current?.innerHTML;
     const printWindow = window.open("", "_blank", "width=420,height=320");
 
     if (!printWindow || !barcodeMarkup) {
@@ -382,9 +397,9 @@ export default function CatalogoCentral() {
           </style>
         </head>
         <body>
-          <h3>${skuResult.nombre}</h3>
+          <h3>${item.nombre}</h3>
           ${barcodeMarkup}
-          <div class="sku">${skuResult.sku_maestro}</div>
+          <div class="sku">${item.sku_maestro}</div>
         </body>
       </html>
     `);
@@ -454,6 +469,7 @@ export default function CatalogoCentral() {
       modalType === "articulos"
         ? {
             nombre: payloadForm.nombre,
+            marca: payloadForm.marca,
             modelo: payloadForm.modelo,
             subcategoria_id: payloadForm.subcategoria_id,
             nueva_categoria: payloadForm.nueva_categoria,
@@ -482,9 +498,11 @@ export default function CatalogoCentral() {
       toast.success(data.message || "Registro guardado correctamente");
 
       if (modalType === "articulos") {
+        console.log("Respuesta del servidor:", data.data);
         const saved = data.data ?? {};
         setSkuResult({
           nombre: saved.nombre ?? form.nombre,
+          marca: saved.marca ?? form.marca,
           modelo: saved.modelo ?? form.modelo,
           tipo_articulo: saved.tipo_articulo ?? form.tipo_articulo,
           sku_maestro: saved.sku_maestro ?? "",
@@ -538,6 +556,31 @@ export default function CatalogoCentral() {
     }
   }
 
+  async function confirmDelete() {
+    if (!itemToDelete) return;
+    setIsDeleting(true);
+    try {
+      const response = await apiFetch(`${API}/api/catalogo/articulos/${itemToDelete.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || "No se pudo eliminar el artículo");
+      }
+
+      toast.success(data.message || "Artículo eliminado correctamente");
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
+      await loadCatalogo(); // Recarga la tabla
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   return (
     <div className="space-y-6 px-6 py-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -552,7 +595,38 @@ export default function CatalogoCentral() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <ExportButtons onPdf={() => handleExport("pdf")} onExcel={() => handleExport("excel")} />
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen(!exportOpen)}
+              className="inline-flex h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+            >
+              <FileText className="h-4 w-4" />
+              Exportar
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-12 z-50 w-32 rounded-xl border border-slate-100 bg-white p-2 shadow-lg animate-in fade-in zoom-in-95">
+                <button
+                  onClick={() => {
+                    handleExport("pdf");
+                    setExportOpen(false);
+                  }}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  PDF
+                </button>
+                <button
+                  onClick={() => {
+                    handleExport("excel");
+                    setExportOpen(false);
+                  }}
+                  className="w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-slate-700 hover:bg-slate-50"
+                >
+                  Excel
+                </button>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => openModal("articulos")}
@@ -602,20 +676,27 @@ export default function CatalogoCentral() {
           <table className={dataTableClass()}>
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="w-[24%] px-5 py-4">Artículo</th>
+                <th className="w-[20%] px-5 py-4">Artículo</th>
                 <th className="w-[18%] px-5 py-4">Categoría</th>
                 <th className="w-[12%] px-5 py-4">Unidad</th>
-                <th className="w-[14%] px-5 py-4">Stock ideal</th>
-                <th className="w-[14%] px-5 py-4">Stock actual</th>
-                <th className="w-[12%] px-5 py-4">Tipo</th>
+                <th className="w-[14%] px-5 py-4">Tipo</th>
+                <th className="w-[15%] px-5 py-4 text-center">Req. Serie</th>
+                <th className="w-[15%] px-5 py-4 text-center">Consumible</th>
                 <th className="w-[6%] px-5 py-4 text-right">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {articulos.rows.map((row) => (
-                <tr key={row.id} className="transition hover:bg-slate-50/80">
+                <tr 
+                  key={row.id} 
+                  onClick={() => {
+                    setDetailItem(row);
+                    setDetailModalOpen(true);
+                  }}
+                  className="transition hover:bg-slate-50/80 cursor-pointer">
                   <td className="px-5 py-4">
                     <div className="truncate font-bold text-slate-900">{row.nombre}</div>
+                    <div className="truncate text-xs text-slate-500">{row.marca || "Sin marca"}</div>
                     <div className="truncate text-xs text-slate-500">{row.modelo || "Sin modelo"}</div>
                     <div className="truncate font-mono text-[11px] font-semibold text-blue-600">
                       {row.sku_maestro || "SKU pendiente"}
@@ -626,8 +707,6 @@ export default function CatalogoCentral() {
                     <div className="truncate text-xs text-slate-500">{row.subcategoria || "Sin subcategoría"}</div>
                   </td>
                   <td className="truncate px-5 py-4">{row.unidad_medida}</td>
-                  <td className="truncate px-5 py-4 font-semibold text-slate-900">{row.stock_minimo}</td>
-                  <td className="truncate px-5 py-4 font-semibold text-blue-700">{row.stock_actual}</td>
                   <td className="px-5 py-4">
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                       {String(row.tipo_articulo || (row.es_consumible ? "venta" : "herramienta")).replace(/^\w/, (letter) =>
@@ -635,13 +714,54 @@ export default function CatalogoCentral() {
                       )}
                     </span>
                   </td>
+                  <td className="px-5 py-4 text-center">
+                    <span className={cn("rounded-full px-3 py-1 text-xs font-bold", row.requiere_serie ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-700")}>
+                      {row.requiere_serie ? "Sí" : "No"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <span className={cn("rounded-full px-3 py-1 text-xs font-bold", row.es_consumible ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-700")}>
+                      {row.es_consumible ? "Sí" : "No"}
+                    </span>
+                  </td>
                   <td className="px-5 py-4 text-right">
+
                     <button
                       type="button"
-                      onClick={() => openEdit(row)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailItem(row);
+                        setDetailModalOpen(true);
+                      }}
+                      className="inline-flex items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-50 hover:shadow-sm"
+                      title="Ver detalles"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        openEdit(row); 
+                      }}
                       className="inline-flex items-center justify-center rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:shadow-sm"
                     >
                       <Pencil className="h-4 w-4" />
+                    </button>
+
+                    {/* Botón de Borrar (Papelera) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setItemToDelete(row);
+                        setDeleteModalOpen(true);
+                      }}
+                      className="inline-flex items-center justify-center rounded-xl border border-rose-200 px-3 py-2 text-xs font-bold text-rose-700 transition hover:-translate-y-0.5 hover:bg-rose-50 hover:shadow-sm"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="h-4 w-4 pointer-events-none" />
                     </button>
                   </td>
                 </tr>
@@ -691,7 +811,10 @@ export default function CatalogoCentral() {
                   <td className="px-5 py-4 text-right">
                     <button
                       type="button"
-                      onClick={() => openEdit(row)}
+                      onClick={(e) => { 
+                        e.stopPropagation();
+                        openEdit(row); 
+                      }}
                       className="inline-flex items-center justify-center rounded-xl border border-blue-200 px-3 py-2 text-xs font-bold text-blue-700 transition hover:-translate-y-0.5 hover:bg-blue-50 hover:shadow-sm"
                     >
                       <Pencil className="h-4 w-4" />
@@ -865,11 +988,19 @@ export default function CatalogoCentral() {
                     error={errors.nombre}
                   />
                 </Field>
+                <Field label="Marca" error={errors.marca}>
+                  <TextInput
+                    value={form.marca}
+                    onChange={(event) => setForm((value) => ({ ...value, marca: event.target.value }))}
+                    placeholder="Ej. Bosch"
+                    error={errors.marca}
+                  />
+                </Field>
                 <Field label="Modelo" error={errors.modelo}>
                   <TextInput
                     value={form.modelo}
                     onChange={(event) => setForm((value) => ({ ...value, modelo: event.target.value }))}
-                    placeholder="Ej. Bosch GSB 550"
+                    placeholder="Ej. SB 550"
                     error={errors.modelo}
                   />
                 </Field>
@@ -953,15 +1084,32 @@ export default function CatalogoCentral() {
                     error={errors.unidad_medida}
                   />
                 </Field>
-                <Field label="Stock ideal" error={errors.stock_minimo}>
-                  <TextInput
-                    type="number"
-                    min="0"
-                    value={form.stock_minimo}
-                    onChange={(event) => setForm((value) => ({ ...value, stock_minimo: event.target.value }))}
-                    error={errors.stock_minimo}
-                  />
-                </Field>
+                <div className="md:col-span-2 flex flex-col gap-4 sm:flex-row">
+                  <div className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Requiere Serie</p>
+                      <p className="text-xs text-slate-500">Se registrará individualmente</p>
+                    </div>
+                    <ToggleButton
+                      active={form.requiere_serie}
+                      onClick={() => setForm((value) => ({ ...value, requiere_serie: !value.requiere_serie }))}
+                    >
+                      {form.requiere_serie ? "Sí" : "No"}
+                    </ToggleButton>
+                  </div>
+                  <div className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-slate-900">Es Consumible</p>
+                      <p className="text-xs text-slate-500">Se manejará por cantidades</p>
+                    </div>
+                    <ToggleButton
+                      active={form.es_consumible}
+                      onClick={() => setForm((value) => ({ ...value, es_consumible: !value.es_consumible }))}
+                    >
+                      {form.es_consumible ? "Sí" : "No"}
+                    </ToggleButton>
+                  </div>
+                </div>
                 <div className="md:col-span-2 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">SKU maestro actual</p>
@@ -1074,6 +1222,227 @@ export default function CatalogoCentral() {
             </div>
           </form>
           )}
+        </PremiumModal>
+      )}
+
+      {/* --- MODAL DE ELIMINACIÓN --- */}
+      {deleteModalOpen && itemToDelete && (
+        <PremiumModal className="max-w-md" onBackdropClick={() => !isDeleting && setDeleteModalOpen(false)}>
+          <div className="space-y-6 text-center">
+            {Number(itemToDelete.stock_actual) > 0 ? (
+              /* ESTADO: NO SE PUEDE BORRAR (TIENE STOCK) */
+              <>
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                  <AlertCircle className="h-9 w-9" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">No se puede eliminar</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    El artículo <strong>{itemToDelete.nombre}</strong> aún tiene <strong>{Number(itemToDelete.stock_actual).toLocaleString()}</strong> en inventario.
+                  </p>
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+                    Debes retirar o dar de baja todo el stock antes de poder borrar este registro del catálogo.
+                  </div>
+                </div>
+                <div className="border-t border-slate-100 pt-5">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="w-full h-11 rounded-full bg-slate-100 px-6 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-200"
+                  >
+                    Entendido
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* ESTADO: SE PUEDE BORRAR (STOCK CERO) */
+              <>
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 text-rose-600">
+                  <Trash2 className="h-9 w-9" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">¿Eliminar artículo?</h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    Estás a punto de eliminar <strong>{itemToDelete.nombre}</strong>.
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-rose-500">
+                    Se ocultará del catálogo, pero se mantendrá en el historial para referencia.
+                  </p>
+                </div>
+                <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="h-11 rounded-full bg-slate-100 px-6 text-sm font-bold text-slate-700 transition hover:-translate-y-0.5 hover:bg-slate-200 disabled:opacity-50"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={confirmDelete}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-rose-600 px-6 text-sm font-bold text-white shadow-lg shadow-rose-100 transition hover:-translate-y-0.5 hover:bg-rose-700 hover:shadow-md disabled:opacity-50"
+                  >
+                    {isDeleting ? "Eliminando..." : "Sí, eliminar"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </PremiumModal>
+      )}
+      {/* --- MODAL DE DETALLES PREMIUM --- */}
+      {detailModalOpen && detailItem && (
+        <PremiumModal className="max-w-4xl" onBackdropClick={() => { setDetailModalOpen(false); setDetailItem(null); }}>
+          <div className="space-y-6">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h2 className="text-xl font-extrabold text-slate-900">
+                  {detailItem.placas !== undefined ? "Detalles del Vehículo" : "Detalles del Artículo"}
+                </h2>
+                <p className="mt-1 text-sm text-slate-500">
+                  Información detallada registrada en el catálogo maestro central.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setDetailModalOpen(false); setDetailItem(null); }}
+                className="rounded-full border border-slate-200 px-3 py-1.5 text-sm font-bold text-slate-500 transition hover:bg-slate-50"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {/* VISTA PARA VEHÍCULOS (si tiene propiedad placas) */}
+            {detailItem.placas !== undefined ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2 rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Nombre / Alias</span>
+                  <span className="text-base font-bold text-slate-900">{detailItem.nombre}</span>
+                </div>
+                {/* Puedes replicar esto para los demás datos del vehículo */}
+                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Placas</span>
+                  <span className="text-sm font-semibold text-slate-800">{detailItem.placas || "-"}</span>
+                </div>
+                <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                  <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Modelo</span>
+                  <span className="text-sm font-semibold text-slate-800">{detailItem.modelo || "-"}</span>
+                </div>
+              </div>
+            ) : (
+              /* VISTA PARA ARTÍCULOS */
+              <>
+                <div className="flex flex-col lg:flex-row gap-6">
+                
+                {/* IZQUIERDA: Cuadrícula de Detalles */}
+                <div className="flex-1 grid gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2 rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Nombre del Artículo</span>
+                    <span className="text-base font-bold text-slate-900">{detailItem.nombre}</span>
+                  </div>
+                  
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Marca</span>
+                    <span className="text-sm font-semibold text-slate-800">{detailItem.marca || "Sin marca"}</span>
+                  </div>
+                  
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Modelo</span>
+                    <span className="text-sm font-semibold text-slate-800">{detailItem.modelo || "Sin modelo"}</span>
+                  </div>
+                  
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Tipo de Artículo</span>
+                    <span className="inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-700 mt-1">
+                      {String(detailItem.tipo_articulo || (detailItem.es_consumible ? "venta" : "herramienta")).toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Categoría</span>
+                    <span className="text-sm font-semibold text-slate-800">{detailItem.categoria || "Sin categoría"}</span>
+                  </div>
+                  
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Subcategoría</span>
+                    <span className="text-sm font-semibold text-slate-800">{detailItem.subcategoria || "Sin subcategoría"}</span>
+                  </div>
+
+                  <div className="rounded-2xl bg-blue-50/50 p-4 border border-blue-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-blue-500 block mb-1">Stock Actual</span>
+                    <span className="text-xl font-extrabold text-blue-700">
+                      {/* Corrección de parseo numérico para evitar errores de renderizado */}
+                      {Number(detailItem.stock_actual || 0).toLocaleString()} <span className="text-sm font-semibold text-blue-600">{detailItem.unidad_medida || "PZA"}</span>
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Stock Mínimo</span>
+                    <span className="text-base font-semibold text-slate-800">
+                      {Number(detailItem.stock_minimo || 0).toLocaleString()} {detailItem.unidad_medida || "PZA"}
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 flex flex-col justify-center">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Requiere Serie</span>
+                    <div>
+                      <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-bold", detailItem.requiere_serie ? "bg-amber-100 text-amber-700" : "bg-slate-200 text-slate-500")}>
+                        {detailItem.requiere_serie ? "Sí (Rastreo individual)" : "No"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-slate-50 p-4 border border-slate-100 flex flex-col justify-center">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-1">Es Consumible</span>
+                    <div>
+                      <span className={cn("inline-block rounded-full px-2.5 py-0.5 text-xs font-bold", detailItem.es_consumible ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500")}>
+                        {detailItem.es_consumible ? "Sí (Por cantidad)" : "No"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DERECHA: Zona de Código de Barras */}
+                <div className="w-full lg:w-[320px] shrink-0">
+                  <div className="sticky top-0 rounded-3xl border border-slate-200 bg-slate-50 p-6 text-center flex flex-col items-center justify-center h-full min-h-[300px]">
+                    <span className="text-xs font-bold uppercase tracking-wide text-slate-400 block mb-4">Código de Barras (SKU)</span>
+                    {detailItem.sku_maestro ? (
+                      <>
+                        <div ref={detailBarcodeRef} className="flex justify-center rounded-2xl bg-white p-4 shadow-sm border border-slate-200 w-full overflow-hidden">
+                          <Barcode
+                            value={detailItem.sku_maestro}
+                            width={1.8}
+                            height={72}
+                            fontSize={16}
+                            margin={8}
+                            displayValue
+                          />
+                        </div>
+                        <div className="mt-6 w-full">
+                          <button
+                            type="button"
+                            onClick={() => printSkuLabel(detailItem, detailBarcodeRef)}
+                            className="w-full inline-flex h-11 items-center justify-center gap-2 rounded-full bg-blue-600 px-6 text-sm font-bold text-white shadow-lg shadow-blue-100 transition hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-md"
+                          >
+                            <Printer className="h-4 w-4" />
+                            Imprimir etiqueta
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+                        Sin SKU maestro asignado. No se puede imprimir.
+                      </div>
+                    )}
+                  </div>
+                </div>
+                </div>
+
+              </>
+            )}
+          </div>
         </PremiumModal>
       )}
     </div>

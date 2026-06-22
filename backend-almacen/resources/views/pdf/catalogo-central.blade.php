@@ -78,6 +78,7 @@
             <thead>
                 <tr>
                     <th>Artículo</th>
+                    <th>Marca</th>
                     <th>Modelo</th>
                     <th>Categoría</th>
                     <th>Subcategoría</th>
@@ -91,7 +92,8 @@
                 @forelse ($rows as $row)
                     <tr>
                         <td>{{ $row->nombre }}</td>
-                        <td class="muted">{{ $row->modelo ?: '-' }}</td>
+                        <td>{{ $row->marca ?? 'N/A' }}</td> 
+                        <td>{{ $row->modelo ?? 'N/A' }}</td>
                         <td>{{ $row->categoria ?: '-' }}</td>
                         <td>{{ $row->subcategoria ?: '-' }}</td>
                         <td>{{ $row->unidad_medida }}</td>

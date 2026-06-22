@@ -13,11 +13,11 @@ class AdminSeeder extends Seeder
         Usuario::updateOrCreate([
             'email' => 'admin@smartlynk.com',
         ], [
-            'nombre_usuario'    => 'Administrador Principal',
-            'password_hash'     => Hash::make('Admin123!'), // Usamos password_hash en lugar de password
+            'nombre_usuario'    => 'admin',
+            'password_hash'     => Hash::make('admin123'), // Usamos password_hash en lugar de password
             'rol_acceso'        => 'Admin',
             'password_cambiado' => true, // Para que no pida cambiarla
-            'activo'            => true,
+            //'activo'            => true,
         ]);
     }
 }

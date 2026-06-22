@@ -1,380 +1,363 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import Barcode from "react-barcode";
-import { toast } from "sonner";
-import { PremiumCard, PremiumModal } from "../../components/ui/premium";
-import { SelectPremium } from "../../components/ui/SelectPremium";
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL ?? "";
 const authHeaders = () => ({
-  "Content-Type": "application/json",
-  Authorization: `Bearer ${localStorage.getItem("smartlynk_token") ?? ""}`,
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${localStorage.getItem("smartlynk_token") ?? ""}`,
 });
 
-async function readJson(response) {
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok || data.success === false) {
-    throw new Error(data.message || data.mensaje || "No se pudo completar la operación");
-  }
-  return data;
-}
-
-function PrestamoModal({ items, empleado, onClose, onConfirm, onRemove, onQuantityChange, loading }) {
-  return (
-    <PremiumModal className="max-w-5xl p-0" onBackdropClick={onClose}>
-        <div className="flex items-start justify-between border-b border-slate-100 p-5">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">Confirmar préstamo</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              {empleado ? `Empleado: ${empleado.nombre_completo}` : "Selecciona un empleado antes de confirmar."}
-            </p>
-          </div>
-          <button onClick={onClose} className="rounded-lg px-2 py-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
-            Cerrar
-          </button>
-        </div>
-
-        <div className="p-5">
-          <div className="grid gap-3">
-            {items.map((item) => (
-              <div key={item.key} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[1fr_230px_120px_90px] lg:items-center">
-                <div>
-                  <p className="font-bold text-slate-900">{item.articulo}</p>
-                  <p className="text-sm text-slate-500">{item.modelo || "Sin modelo"}</p>
-                </div>
-                <div className="rounded-lg bg-white p-2">
-                  {item.sku ? <Barcode value={item.sku} height={36} width={1} fontSize={10} margin={3} /> : <span className="text-xs text-slate-400">Sin SKU</span>}
-                </div>
-                <input
-                  type="number"
-                  min={1}
-                  value={item.cantidad}
-                  disabled={item.tipo_codigo === "serie"}
-                  onChange={(event) => onQuantityChange(item.key, event.target.value)}
-                  className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-100"
-                />
-                <button onClick={() => onRemove(item.key)} className="rounded-xl bg-red-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-red-700">
-                  Eliminar
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end">
-          <button onClick={onClose} className="rounded-xl bg-slate-100 px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-200">
-            Cancelar
-          </button>
-          <button onClick={onConfirm} disabled={loading || !empleado || items.length === 0} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-            {loading ? "Registrando..." : "Confirmar préstamo"}
-          </button>
-        </div>
-    </PremiumModal>
-  );
-}
-
 export default function Salida() {
-  const navigate = useNavigate();
-  const scannerRef = useRef(null);
-  const [articulos, setArticulos] = useState([]);
-  const [empleados, setEmpleados] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [showPrestamoModal, setShowPrestamoModal] = useState(false);
-  const [scannedItem, setScannedItem] = useState(null);
-  const [prestamoItems, setPrestamoItems] = useState([]);
-  const [form, setForm] = useState({
-    articulo_id: "",
-    empleado_id: "",
-    cantidad: 1,
-    tipo: "salida",
-    notas: "",
-  });
+    const navigate = useNavigate();
+    
+    // Estados para la data maestra
+    const [inventario, setInventario] = useState([]);
+    const [empleados, setEmpleados] = useState([]);
+    const [proveedores, setProveedores] = useState([]);
 
-  const articuloSeleccionado = useMemo(
-    () => articulos.find((articulo) => String(articulo.id) === String(form.articulo_id)),
-    [articulos, form.articulo_id]
-  );
-  const empleadoSeleccionado = useMemo(
-    () => empleados.find((empleado) => String(empleado.id) === String(form.empleado_id)),
-    [empleados, form.empleado_id]
-  );
+    // Estados para el formulario
+    const [empleadoId, setEmpleadoId] = useState('');
+    const [proveedorId, setProveedorId] = useState('');
+    const [notas, setNotas] = useState('');
+    
+    // Estados del Carrito y Búsqueda
+    const [carrito, setCarrito] = useState([]);
+    const [busqueda, setBusqueda] = useState('');
+    const [resultados, setResultados] = useState([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    
+    const dropdownRef = useRef(null);
 
-  useEffect(() => {
-    const cargar = async () => {
-      try {
-        const [rArt, rEmp] = await Promise.all([
-          fetch(`${API}/api/almacen/articulos`, { headers: authHeaders() }),
-          fetch(`${API}/api/empleados`, { headers: authHeaders() }),
-        ]);
-        const [dArt, dEmp] = await Promise.all([readJson(rArt), rEmp.json()]);
-        setArticulos(dArt.data ?? dArt ?? []);
-        setEmpleados(dEmp.data ?? dEmp ?? []);
-      } catch (error) {
-        toast.error(error.message || "Error al cargar catálogos");
-      } finally {
-        setCargando(false);
-      }
-    };
-    cargar();
-  }, []);
+    // Cargar datos al montar el componente
+    useEffect(() => {
+        cargarDatos();
+        
+        // Cerrar dropdown al hacer click fuera
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
-  const set = (key, value) => setForm((prev) => ({ ...prev, [key]: value }));
+    const cargarDatos = async () => {
+        try {
+            // Reutilizamos el endpoint que ya armamos para Index.jsx
+            const [invRes, empRes, provRes] = await Promise.all([
+                fetch(`${API}/api/almacen/inventario-detallado`, { headers: authHeaders() }),
+                fetch(`${API}/api/empleados`, { headers: authHeaders() }),
+                fetch(`${API}/api/proveedores`, { headers: authHeaders() }) // Ajusta la ruta si es distinta
+            ]);
 
-  const handleScan = async (event) => {
-    event.preventDefault();
-    const codigo = scannerRef.current?.value?.trim();
-    if (scannerRef.current) scannerRef.current.value = "";
-    if (!codigo) return;
+            const invData = await invRes.json();
+            const empData = await empRes.json();
+            const provData = await provRes.json();
 
-    try {
-      const response = await fetch(`${API}/api/almacen/sku/${encodeURIComponent(codigo)}`, { headers: authHeaders() });
-      const data = await readJson(response);
-      const item = data.data;
-      if (String(item.estado).toUpperCase() !== "DISPONIBLE") {
-        toast.error("El SKU no está disponible");
-        return;
-      }
-
-      if (form.tipo === "prestamo") {
-        if (prestamoItems.some((row) => row.sku === item.sku)) {
-          toast.error("Ese SKU ya está en la lista");
-          return;
+            if (invData.success) setInventario(invData.data);
+            if (empData.success) setEmpleados(empData.data);
+            if (provData.success) setProveedores(provData.data);
+        } catch (error) {
+            toast.error("Error al cargar la información base.");
         }
-        setPrestamoItems((prev) => [
-          ...prev,
-          {
-            key: item.sku,
-            sku: item.sku,
-            tipo_codigo: item.tipo_codigo,
-            serie_id: item.tipo_codigo === "serie" ? item.serie_id : undefined,
-            articulo_id: item.articulo_id,
-            articulo: item.articulo,
-            modelo: item.modelo,
-            cantidad: 1,
-          },
-        ]);
-        toast.success(item.tipo_codigo === "serie" ? "SKU agregado al préstamo" : "Consumible agregado al préstamo");
-      } else {
-        setScannedItem(item);
-        set("articulo_id", String(item.articulo_id));
-        set("cantidad", item.tipo_codigo === "serie" ? 1 : form.cantidad);
-        toast.success(item.tipo_codigo === "serie" ? "SKU listo para salida" : "SKU maestro listo para salida por cantidad");
-      }
-    } catch (error) {
-      toast.error(error.message || "SKU no encontrado");
-    }
-  };
+    };
 
-  const addManualToPrestamo = () => {
-    if (!articuloSeleccionado) return toast.error("Selecciona un artículo");
-    const key = `manual-${articuloSeleccionado.id}-${Date.now()}`;
-    setPrestamoItems((prev) => [
-      ...prev,
-      {
-        key,
-        articulo_id: articuloSeleccionado.id,
-        articulo: articuloSeleccionado.nombre,
-        modelo: articuloSeleccionado.modelo,
-        cantidad: Number(form.cantidad || 1),
-      },
-    ]);
-    toast.success("Artículo agregado al préstamo");
-  };
+    // Buscador Inteligente en Tiempo Real
+    useEffect(() => {
+        if (busqueda.trim().length > 1) {
+            const lower = busqueda.toLowerCase();
+            const filtrados = inventario.filter(art => 
+                art.nombre.toLowerCase().includes(lower) || 
+                (art.modelo && art.modelo.toLowerCase().includes(lower)) ||
+                (art.numero_serie_fabricante && art.numero_serie_fabricante.toLowerCase().includes(lower))
+            );
+            setResultados(filtrados);
+            setIsDropdownOpen(true);
+        } else {
+            setResultados([]);
+            setIsDropdownOpen(false);
+        }
+    }, [busqueda, inventario]);
 
-  const submitSalida = async (event) => {
-    event.preventDefault();
-    if (!form.empleado_id) return toast.error("Selecciona el empleado que retira");
+    // Función para agregar al carrito
+    const agregarAlCarrito = (art) => {
+        // Validación: Si es SERIE, checar si ya lo agregamos
+        if (art.row_type === 'serie') {
+            if (carrito.some(item => item.serie_id === art.serie_id)) {
+                toast.error("Esta serie ya está en el carrito.");
+                return;
+            }
+            setCarrito([...carrito, { ...art, cantidadSalida: 1 }]);
+        } else {
+            // Si es CONSUMIBLE, revisar si ya existe para sumar +1 o agregarlo
+            const existeIdx = carrito.findIndex(item => item.articulo_id === art.articulo_id && item.row_type !== 'serie');
+            if (existeIdx >= 0) {
+                const nuevoCarrito = [...carrito];
+                if (nuevoCarrito[existeIdx].cantidadSalida < art.cantidad) {
+                    nuevoCarrito[existeIdx].cantidadSalida += 1;
+                    setCarrito(nuevoCarrito);
+                } else {
+                    toast.error(`Stock máximo alcanzado para ${art.nombre}`);
+                }
+            } else {
+                setCarrito([...carrito, { ...art, cantidadSalida: 1 }]);
+            }
+        }
+        
+        setBusqueda('');
+        setIsDropdownOpen(false);
+        toast.success("Artículo agregado.");
+    };
 
-    if (form.tipo === "prestamo") {
-      if (prestamoItems.length === 0) return toast.error("Agrega al menos un SKU o artículo al préstamo");
-      setShowPrestamoModal(true);
-      return;
-    }
+    // Actualizar cantidad manual en el carrito (Solo para consumibles)
+    const actualizarCantidad = (index, nuevaCantidad) => {
+        const num = Number(nuevaCantidad);
+        const item = carrito[index];
+        if (num > item.cantidad) {
+            toast.error(`Solo hay ${item.cantidad} unidades en stock.`);
+            return;
+        }
+        if (num < 1) return;
 
-    if (!scannedItem && !form.articulo_id) return toast.error("Escanea un SKU o selecciona un artículo");
-    setLoading(true);
-    try {
-      const response = await fetch(`${API}/api/almacen/salida`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          codigo_sku: scannedItem?.sku,
-          articulo_id: scannedItem ? undefined : form.articulo_id,
-          empleado_id: form.empleado_id,
-          cantidad: scannedItem?.tipo_codigo === "serie" ? 1 : form.cantidad,
-          notas: form.notas,
-        }),
-      });
-      const data = await readJson(response);
-      toast.success(data.message || "Salida registrada correctamente");
-      setTimeout(() => navigate("/almacen"), 900);
-    } catch (error) {
-      toast.error(error.message || "Error al registrar salida");
-    } finally {
-      setLoading(false);
-    }
-  };
+        const nuevoCarrito = [...carrito];
+        nuevoCarrito[index].cantidadSalida = num;
+        setCarrito(nuevoCarrito);
+    };
 
-  const confirmPrestamo = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API}/api/almacen/prestamo`, {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          empleado_id: form.empleado_id,
-          notas: form.notas,
-          items: prestamoItems.map((item) => ({
-            codigo_sku: item.tipo_codigo === "serie" ? item.sku : undefined,
-            articulo_id: item.tipo_codigo === "serie" ? undefined : item.articulo_id,
-            cantidad: item.cantidad,
-          })),
-        }),
-      });
-      const data = await readJson(response);
-      toast.success(data.message || "Préstamo registrado correctamente");
-      setTimeout(() => navigate("/almacen/movimientos"), 900);
-    } catch (error) {
-      toast.error(error.message || "Error al registrar préstamo");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const quitarDelCarrito = (index) => {
+        setCarrito(carrito.filter((_, i) => i !== index));
+    };
 
-  return (
-    <>
-      <div className="w-full space-y-6">
-        <PremiumCard interactive={false} className="border-blue-100 bg-blue-50/40 p-4">
-        <form onSubmit={handleScan}>
-          <label className="mb-1.5 block text-sm font-bold text-blue-900">Escanear SKU</label>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              ref={scannerRef}
-              name="scanner"
-              autoComplete="off"
-              placeholder="Escanea con lector y presiona Enter..."
-              className="h-12 flex-1 rounded-xl border border-blue-200 bg-white px-4 text-sm outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
-            <button className="rounded-xl bg-blue-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-blue-700">
-              Procesar
-            </button>
-          </div>
-          {scannedItem && form.tipo === "salida" && (
-            <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3 text-sm text-blue-900">
-              SKU listo: <b>{scannedItem.sku}</b> - {scannedItem.articulo} {scannedItem.modelo ? `(${scannedItem.modelo})` : ""}
-            </div>
-          )}
-        </form>
-        </PremiumCard>
+    // Guardar Salida Completa
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        if (carrito.length === 0) {
+            toast.error("Debe agregar al menos un artículo para registrar la salida.");
+            return;
+        }
 
-        <PremiumCard interactive={false}>
-        <form onSubmit={submitSalida} className="p-6">
-          <div className="grid gap-5">
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Tipo de movimiento</label>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                {[
-                  { val: "salida", label: "Salida definitiva", active: "border-red-400 bg-red-50 text-red-700" },
-                ].map((option) => (
-                  <button
-                    key={option.val}
-                    type="button"
-                    onClick={() => {
-                      set("tipo", option.val);
-                      setScannedItem(null);
-                    }}
-                    className={`flex-1 rounded-xl border-2 py-3 text-sm font-bold transition ${
-                      form.tipo === option.val ? option.active : "border-slate-200 text-slate-500 hover:bg-slate-50"
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+        // Armamos el payload con el formato que ahora espera el Backend
+        const payload = {
+            empleado_id: empleadoId || null,
+            proveedor_id: proveedorId || null,
+            notas: notas,
+            detalles: carrito.map(item => ({
+                articulo_id: item.articulo_id,
+                cantidad: item.cantidadSalida,
+                serie_id: item.row_type === 'serie' ? item.serie_id : null
+            }))
+        };
+
+        try {
+            const response = await fetch(`${API}/api/almacen/salida`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(payload)
+            });
+            const res = await response.json();
+
+            if (res.success) {
+                toast.success("Salida de inventario procesada con éxito.");
+                navigate('/almacen'); // O la ruta a donde quieras redirigir tras el éxito
+            } else {
+                toast.error(res.message || "Error al procesar la salida.");
+            }
+        } catch (error) {
+            toast.error("Error de comunicación con el servidor.");
+        }
+    };
+
+    return (
+        <div className="max-w-6xl mx-auto p-6">
+            <div className="mb-8">
+                <h1 className="text-2xl font-bold text-slate-800">Registrar Salida de Inventario</h1>
+                <p className="text-sm text-slate-500 mt-1">Busque y agregue los artículos que desea retirar.</p>
             </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Artículo manual</label>
-              <SelectPremium 
-                value={String(form.articulo_id)} 
-                onChange={(value) => set("articulo_id", value)} 
-                placeholder={cargando ? "Cargando artículos..." : "Seleccionar artículo..."}
-                options={articulos.map((articulo) => ({ value: String(articulo.id), label: `${articulo.nombre} ${articulo.modelo ? `- ${articulo.modelo}` : ""} (Stock: ${articulo.stock ?? articulo.cantidad ?? 0})` }))}
-              />
-            </div>
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Columna Izquierda: Carrito y Búsqueda */}
+                <div className="lg:col-span-2 space-y-6">
+                    
+                    {/* Buscador de Artículos */}
+                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm relative" ref={dropdownRef}>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Buscar Artículo o Serie</label>
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                <svg className="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
+                            </div>
+                            <input 
+                                type="text"
+                                value={busqueda}
+                                onChange={(e) => setBusqueda(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                                placeholder="Escriba el nombre, SKU o N/S del fabricante..."
+                            />
+                        </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">
-                Empleado que retira <span className="text-red-500">*</span>
-              </label>
-              <SelectPremium 
-                value={String(form.empleado_id)} 
-                onChange={(value) => set("empleado_id", value)} 
-                placeholder={cargando ? "Cargando empleados..." : "Seleccionar empleado..."}
-                options={empleados.map((empleado) => ({ value: String(empleado.id), label: `${empleado.nombre_completo} - ${empleado.departamento_area}` }))}
-              />
-            </div>
+                        {/* Dropdown de Resultados */}
+                        {isDropdownOpen && resultados.length > 0 && (
+                            <div className="absolute z-20 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+                                {resultados.map((art, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        onClick={() => agregarAlCarrito(art)}
+                                        className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0 flex justify-between items-center transition-colors"
+                                    >
+                                        <div>
+                                            <p className="font-semibold text-slate-800 text-sm">{art.nombre}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                {art.row_type === 'serie' ? (
+                                                    <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">SERIE</span>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">GENERAL</span>
+                                                )}
+                                                <span className="text-xs text-slate-500 font-mono">SKU: {art.modelo ?? '-'}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            {art.row_type === 'serie' && art.numero_serie_fabricante && (
+                                                <p className="text-xs font-mono text-amber-600 bg-amber-50 px-2 py-0.5 rounded border border-amber-100">N/S: {art.numero_serie_fabricante}</p>
+                                            )}
+                                            {art.row_type !== 'serie' && (
+                                                <p className="text-xs text-slate-500 mt-1">Stock: <span className="font-bold text-slate-700">{art.cantidad}</span></p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        {isDropdownOpen && resultados.length === 0 && busqueda.length > 1 && (
+                            <div className="absolute z-20 mt-2 w-full bg-white border border-slate-200 rounded-lg shadow-xl p-4 text-center text-sm text-slate-500">
+                                No se encontraron artículos.
+                            </div>
+                        )}
+                    </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Cantidad manual</label>
-              <input
-                type="number"
-                min={1}
-                disabled={scannedItem?.tipo_codigo === "serie"}
-                value={form.cantidad}
-                onChange={(event) => set("cantidad", event.target.value)}
-                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-100"
-              />
-            </div>
+                    {/* Tabla de Artículos Agregados (Carrito) */}
+                    <div className="bg-white border border-slate-200 shadow-sm rounded-xl overflow-hidden">
+                        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+                            <h3 className="font-semibold text-slate-800">Artículos a retirar ({carrito.length})</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-white text-slate-500 border-b border-slate-100">
+                                    <tr>
+                                        <th className="px-5 py-3 font-medium">Artículo</th>
+                                        <th className="px-5 py-3 font-medium w-32">Cant. Disponible</th>
+                                        <th className="px-5 py-3 font-medium w-32">Cant. a Retirar</th>
+                                        <th className="px-5 py-3 text-center">Quitar</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-50">
+                                    {carrito.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="4" className="px-5 py-8 text-center text-slate-400 italic">
+                                                No hay artículos agregados. Busque arriba para agregar.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        carrito.map((item, index) => (
+                                            <tr key={index} className="hover:bg-slate-50/50 transition-colors">
+                                                <td className="px-5 py-3">
+                                                    <p className="font-medium text-slate-800">{item.nombre}</p>
+                                                    <div className="flex gap-2 mt-1">
+                                                        {item.row_type === 'serie' && (
+                                                            <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1 py-0.5 rounded">SERIE {item.numero_serie_fabricante && `- ${item.numero_serie_fabricante}`}</span>
+                                                        )}
+                                                        <span className="text-xs text-slate-400">SKU: {item.modelo}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-3 text-slate-600">
+                                                    {item.row_type === 'serie' ? 'Único' : item.cantidad}
+                                                </td>
+                                                <td className="px-5 py-3">
+                                                    <input 
+                                                        type="number"
+                                                        value={item.cantidadSalida}
+                                                        min={1}
+                                                        max={item.row_type === 'serie' ? 1 : item.cantidad}
+                                                        disabled={item.row_type === 'serie'}
+                                                        onChange={(e) => actualizarCantidad(index, e.target.value)}
+                                                        className="w-full px-2 py-1.5 border border-slate-200 rounded bg-white text-sm focus:outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-500 text-center"
+                                                    />
+                                                </td>
+                                                <td className="px-5 py-3 text-center">
+                                                    <button 
+                                                        type="button" 
+                                                        onClick={() => quitarDelCarrito(index)}
+                                                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
 
-            {form.tipo === "prestamo" && articuloSeleccionado && !scannedItem && (
-              <button type="button" onClick={addManualToPrestamo} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700 transition hover:bg-blue-100">
-                Agregar artículo manual al préstamo
-              </button>
-            )}
+                {/* Columna Derecha: Formulario de Destino y Confirmación */}
+                <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-5">
+                        <h3 className="font-semibold text-slate-800 border-b border-slate-100 pb-3">Detalles de Destino</h3>
+                        
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Empleado Asignado</label>
+                            <select 
+                                value={empleadoId}
+                                onChange={(e) => setEmpleadoId(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-slate-700 bg-white"
+                            >
+                                <option value="">No aplica / Ninguno</option>
+                                {empleados.map(emp => (
+                                    <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
 
-            {form.tipo === "prestamo" && prestamoItems.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                {prestamoItems.length} artículo(s) listos para confirmar préstamo.
-              </div>
-            )}
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Proveedor (Tercero)</label>
+                            <select 
+                                value={proveedorId}
+                                onChange={(e) => setProveedorId(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-slate-700 bg-white"
+                            >
+                                <option value="">No aplica / Ninguno</option>
+                                {proveedores.map(prov => (
+                                    <option key={prov.id} value={prov.id}>{prov.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
 
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Notas (opcional)</label>
-              <textarea
-                rows={3}
-                value={form.notas}
-                onChange={(event) => set("notas", event.target.value)}
-                placeholder="Motivo, proyecto, observaciones..."
-                className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20"
-              />
-            </div>
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Motivo / Notas</label>
+                            <textarea
+                                value={notas}
+                                onChange={(e) => setNotas(e.target.value)}
+                                rows="3"
+                                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500 text-slate-700 bg-white resize-none"
+                                placeholder="Escriba aquí el motivo o referencia de la salida..."
+                            ></textarea>
+                        </div>
 
-            <div className="flex flex-col gap-3 pt-2 sm:flex-row">
-              <Link to="/almacen" className="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-200">
-                Cancelar
-              </Link>
-              <button type="submit" disabled={loading || cargando} className="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50">
-                {loading ? "Registrando..." : `Registrar ${form.tipo === "prestamo" ? "Préstamo" : "Salida"}`}
-              </button>
-            </div>
-          </div>
-        </form>
-        </PremiumCard>
-      </div>
-
-      {showPrestamoModal && (
-        <PrestamoModal
-          items={prestamoItems}
-          empleado={empleadoSeleccionado}
-          loading={loading}
-          onClose={() => setShowPrestamoModal(false)}
-          onConfirm={confirmPrestamo}
-          onRemove={(key) => setPrestamoItems((prev) => prev.filter((item) => item.key !== key))}
-          onQuantityChange={(key, cantidad) => setPrestamoItems((prev) => prev.map((item) => item.key === key ? { ...item, cantidad } : item))}
-        />
-      )}
-    </>
-  );
+                        <div className="pt-4 border-t border-slate-100">
+                            <button 
+                                type="submit"
+                                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-colors"
+                            >
+                                Confirmar Salida
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    );
 }

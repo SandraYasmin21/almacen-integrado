@@ -83,7 +83,12 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::get('export/excel', [DashboardController::class, 'exportExcel']);
     Route::get('export/pdf', [DashboardController::class, 'exportPDF']);
 
+    Route::get('/almacen/dashboard', [AlmacenController::class, 'dashboardStats']);
+    Route::post('/almacen/entrada/importar-csv', [AlmacenController::class, 'importarCSV']);
+    Route::get('/almacen/exportar-inventario', [AlmacenController::class, 'exportarInventarioDetallado']);
+    Route::get('almacen/inventario-detallado', [AlmacenController::class, 'inventarioDetalladoApi']);
     Route::get('almacen/articulos', [AlmacenController::class, 'inventarioApi']);
+    Route::get('almacen/catalogo-entrada', [AlmacenController::class, 'catalogoEntradaApi']);
     Route::get('almacen/export/{format}', [AlmacenController::class, 'export']);
     Route::get('almacen/categorias', fn () => DB::table('categorias')->where('activo', true)->orderBy('nombre')->get());
     Route::get('almacen/ubicaciones', fn () => DB::table('stock_general')
@@ -94,6 +99,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
         ->get());
     Route::post('almacen/entrada', [AlmacenController::class, 'registrarEntrada']);
     Route::get('almacen/sku/{codigo}', [AlmacenController::class, 'buscarSku']);
+    Route::get('almacen/articulos/{id}/series-disponibles', [AlmacenController::class, 'seriesDisponiblesPorArticulo']);
     Route::post('almacen/salida', [AlmacenController::class, 'registrarSalida']);
     Route::post('almacen/prestamo', [AlmacenController::class, 'registrarPrestamo']);
     Route::post('almacen/devolucion', [AlmacenController::class, 'registrarDevolucion']);
@@ -102,7 +108,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::get('almacen/movimientos/{id}', [AlmacenController::class, 'movimientoDetalle']);
     Route::put('almacen/movimientos/{id}', [AlmacenController::class, 'actualizarMovimiento']);
     Route::delete('almacen/movimientos/{id}', [AlmacenController::class, 'eliminarMovimiento']);
-
+    Route::put('almacen/serie/{id}/nota', [AlmacenController::class, 'actualizarNotaSerie']);
     // ── Órdenes de Compra ──────────────────────────────────────────────────────
     Route::get('almacen/requisiciones', [OrdenCompraController::class, 'requisiciones']);
     Route::get('almacen/ordenes-compra/export/excel', [OrdenCompraController::class, 'exportExcel']);
@@ -124,6 +130,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
         Route::get('subcategorias', [CatalogoCentralController::class, 'subcategorias']);
         Route::post('articulos', [CatalogoCentralController::class, 'storeArticulo']);
         Route::put('articulos/{id}', [CatalogoCentralController::class, 'updateArticulo']);
+        Route::delete('/articulos/{id}', [CatalogoCentralController::class, 'deleteArticulo']);
         Route::post('vehiculos', [CatalogoCentralController::class, 'storeVehiculo']);
         Route::put('vehiculos/{id}', [CatalogoCentralController::class, 'updateVehiculo']);
         Route::get('export/{tipo}/{formato}', [CatalogoCentralController::class, 'export']);
@@ -168,25 +175,25 @@ use App\Http\Controllers\FlotillaController;
 // Nota: DashboardController, AlmacenController, EmpleadoController ya estan importados arriba.
 
 Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
-    Route::prefix('catalogo-web')->group(function () {
-        Route::get('/', [CatalogoController::class, 'index']);
-        Route::get('/crear', [CatalogoController::class, 'create']);
-        Route::post('/', [CatalogoController::class, 'store']);
-        Route::get('/{id}', [CatalogoController::class, 'show']);
-        Route::get('/{id}/editar', [CatalogoController::class, 'edit']);
-        Route::put('/{id}', [CatalogoController::class, 'update']);
-    });
+    // Route::prefix('catalogo-web')->group(function () {
+    //     Route::get('/', [CatalogoController::class, 'index']);
+    //     Route::get('/crear', [CatalogoController::class, 'create']);
+    //     Route::post('/', [CatalogoController::class, 'store']);
+    //     Route::get('/{id}', [CatalogoController::class, 'show']);
+    //     Route::get('/{id}/editar', [CatalogoController::class, 'edit']);
+    //     Route::put('/{id}', [CatalogoController::class, 'update']);
+    // });
 
-    Route::prefix('almacen-web')->group(function () {
-        Route::get('/', [AlmacenController::class, 'index']);
-        Route::get('/entrada', [AlmacenController::class, 'entradaForm']);
-        Route::get('/salida', [AlmacenController::class, 'salidaForm']);
-        Route::get('/prestamo', [AlmacenController::class, 'prestamoForm']);
-        Route::get('/movimientos', [AlmacenController::class, 'movimientosView']);
-        Route::get('/articulo/{id}', [AlmacenController::class, 'articuloDetalle']);
-        Route::get('/serie/{id}', [AlmacenController::class, 'serieDetalle']);
-        Route::get('/ubicacion/{ubicacion}', [AlmacenController::class, 'ubicacionDetalle']);
-    });
+    // Route::prefix('almacen-web')->group(function () {
+    //     Route::get('/', [AlmacenController::class, 'index']);
+    //     Route::get('/entrada', [AlmacenController::class, 'entradaForm']);
+    //     Route::get('/salida', [AlmacenController::class, 'salidaForm']);
+    //     Route::get('/prestamo', [AlmacenController::class, 'prestamoForm']);
+    //     Route::get('/movimientos', [AlmacenController::class, 'movimientosView']);
+    //     Route::get('/articulo/{id}', [AlmacenController::class, 'articuloDetalle']);
+    //     Route::get('/serie/{id}', [AlmacenController::class, 'serieDetalle']);
+    //     Route::get('/ubicacion/{ubicacion}', [AlmacenController::class, 'ubicacionDetalle']);
+    // });
 
     Route::prefix('empleados-web')->group(function () {
         Route::get('/', [EmpleadoController::class, 'index']);
