@@ -213,7 +213,6 @@ export default function AlmacenIndex() {
         fetch(`${API}/api/almacen/ubicaciones`, { headers: authHeaders() }),
       ]);
       const [dArt, dCat, dEmp, dUbi] = await Promise.all([rArt.json(), rCat.json(), rEmp.json(), rUbi.json()]);
-      console.log(dArt);
       setArticulos(dArt.data ?? dArt ?? []);
       setCategorias(dCat.data ?? dCat ?? []);
       setEmpleados(dEmp.data ?? dEmp ?? []);
