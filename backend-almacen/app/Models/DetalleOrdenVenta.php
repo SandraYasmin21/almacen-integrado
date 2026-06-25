@@ -1,15 +1,20 @@
 <?php
 
-namespace smartlynk\Core\Models;
+namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class StockGeneral extends Model
+class DetalleOrdenVenta extends Model
 {
-    protected $table = 'stock_general';
+    protected $table = 'detalle_orden_venta';
 
     protected $guarded = [];
+
+    public function ordenVenta(): BelongsTo
+    {
+        return $this->belongsTo(OrdenVenta::class, 'orden_venta_id');
+    }
 
     public function articulo(): BelongsTo
     {

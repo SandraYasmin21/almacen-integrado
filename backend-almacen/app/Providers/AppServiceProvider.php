@@ -3,7 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use smartlynk\Core\Models\Empleado;
+use App\Models\Empleado;
 
 class AppServiceProvider extends ServiceProvider
 {

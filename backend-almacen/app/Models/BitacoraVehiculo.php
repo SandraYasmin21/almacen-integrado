@@ -7,10 +7,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BitacoraVehiculo extends Model
 {
-    /**
-     * Nombre de tabla igual al definido en el paquete smartlynk/core-compartido.
-     * Esto garantiza coherencia si otros módulos consultan la misma tabla.
-     */
     protected $table = 'bitacora_vehiculos';
 
     protected $fillable = [
@@ -38,11 +34,8 @@ class BitacoraVehiculo extends Model
         return $this->belongsTo(VehiculoFlotilla::class, 'vehiculo_id');
     }
 
-    /**
-     * Relación con el modelo de empleados del paquete compartido.
-     */
     public function empleado(): BelongsTo
     {
-        return $this->belongsTo(\smartlynk\Core\Models\Empleado::class, 'empleado_id');
+        return $this->belongsTo(Empleado::class, 'empleado_id');
     }
 }

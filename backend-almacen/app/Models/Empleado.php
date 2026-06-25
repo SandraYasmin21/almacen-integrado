@@ -9,12 +9,17 @@ class Empleado extends Model
 {
     use HasFactory;
 
-    // Permitimos que estos campos se llenen desde el formulario
-    protected $fillable = [
-        'numero_gafete',
-        'nombre_completo',
-        'departamento_area',
-        'foto_perfil',
-        'activo'
+    protected $table = 'empleados';
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'fecha_ingreso' => 'date',
+        'tiene_licencia' => 'boolean',
     ];
+
+    public function getNombreAttribute(): ?string
+    {
+        return $this->nombre_completo;
+    }
 }

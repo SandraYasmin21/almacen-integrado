@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1e5e445415143aba8eb0919d865d4782",
+    "content-hash": "8aefe0fe7243878019789297bca663b5",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -4333,33 +4333,6 @@
                 "source": "https://github.com/MyIntervals/PHP-CSS-Parser/tree/v9.4.0"
             },
             "time": "2026-06-18T15:10:53+00:00"
-        },
-        {
-            "name": "smartlynk/core-compartido",
-            "version": "dev-main",
-            "dist": {
-                "type": "path",
-                "url": "packages/smartlynk/core-compartido",
-                "reference": "3992b7c9241574e1a25091a92539b8bc1cd35e16"
-            },
-            "type": "library",
-            "extra": {
-                "laravel": {
-                    "providers": [
-                        "smartlynk\\Core\\SharedServiceProvider"
-                    ]
-                }
-            },
-            "autoload": {
-                "psr-4": {
-                    "smartlynk\\Core\\": "src/"
-                }
-            },
-            "description": "Paquete local compartido para SmartLynk",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
         },
         {
             "name": "symfony/clock",
@@ -9484,9 +9457,7 @@
     ],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "smartlynk/core-compartido": 20
-    },
+    "stability-flags": {},
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

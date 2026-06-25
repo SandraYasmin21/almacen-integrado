@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class VehiculoFlotilla extends Model
 {
-    /**
-     * Nombre de tabla coherente con el paquete smartlynk/core-compartido.
-     */
     protected $table = 'vehiculos_flotilla';
 
     protected $fillable = [

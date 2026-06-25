@@ -11,8 +11,7 @@
         "laravel/framework": "^13.7",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
-        "maatwebsite/excel": "^3.1",
-        "smartlynk/core-compartido": "dev-main"
+        "maatwebsite/excel": "^3.1"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -72,10 +71,7 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": [],
-            "providers": [
-                "smartlynk\\Core\\SharedServiceProvider"
-            ]
+            "dont-discover": []
         }
     },
     "config": {
@@ -88,14 +84,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [
-        {
-            "type": "path",
-            "url": "packages/smartlynk/core-compartido",
-            "options": {
-                "symlink": true
-            }
-        }
-    ]
+    "prefer-stable": true
 }
