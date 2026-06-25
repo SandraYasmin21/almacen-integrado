@@ -46,7 +46,7 @@ export function SelectPremium({
             <div 
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center justify-between px-3 py-2 bg-white border cursor-pointer select-none transition-all duration-200 outline-none",
+                    "flex items-center justify-between px-4 h-12 bg-white border cursor-pointer select-none transition-all duration-200 outline-none",
                     isOpen ? "border-blue-500 ring-2 ring-blue-500/20 rounded-t-xl rounded-b-none" : "border-slate-200 rounded-xl hover:border-slate-300 shadow-sm",
                     !selectedOption ? "text-slate-400" : "text-slate-700 font-medium"
                 )}

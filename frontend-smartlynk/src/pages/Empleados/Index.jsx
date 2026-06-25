@@ -451,7 +451,6 @@ export default function Empleados({ view = "directorio" }) {
     <div className="pb-20">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Empleados</p>
           <h1 className="text-2xl font-bold text-slate-900">{pageTitle}</h1>
         </div>
         <button
