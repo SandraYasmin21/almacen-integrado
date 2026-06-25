@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "85eaf6ee48c5ec67fa9ede7ed729e549",
+    "content-hash": "1e5e445415143aba8eb0919d865d4782",
     "packages": [
         {
             "name": "barryvdh/laravel-dompdf",
@@ -4337,23 +4337,11 @@
         {
             "name": "smartlynk/core-compartido",
             "version": "dev-main",
-            "source": {
-                "type": "git",
-                "url": "git@github.com:Dev-E-R/smartlynkComposerData.git",
-                "reference": "ebbc913ec5d405016d17ec839702df04b6acd40a"
-            },
             "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/Dev-E-R/smartlynkComposerData/zipball/ebbc913ec5d405016d17ec839702df04b6acd40a",
-                "reference": "ebbc913ec5d405016d17ec839702df04b6acd40a",
-                "shasum": ""
+                "type": "path",
+                "url": "packages/smartlynk/core-compartido",
+                "reference": "3992b7c9241574e1a25091a92539b8bc1cd35e16"
             },
-            "require": {
-                "illuminate/database": ">=10.0",
-                "illuminate/support": ">=10.0",
-                "php": "^8.1"
-            },
-            "default-branch": true,
             "type": "library",
             "extra": {
                 "laravel": {
@@ -4367,15 +4355,11 @@
                     "smartlynk\\Core\\": "src/"
                 }
             },
-            "license": [
-                "MIT"
-            ],
-            "description": "Modelos y lógica compartida para mis sistemas Laravel",
-            "support": {
-                "source": "https://github.com/Dev-E-R/smartlynkComposerData/tree/main",
-                "issues": "https://github.com/Dev-E-R/smartlynkComposerData/issues"
-            },
-            "time": "2026-06-12T18:45:35+00:00"
+            "description": "Paquete local compartido para SmartLynk",
+            "transport-options": {
+                "symlink": true,
+                "relative": true
+            }
         },
         {
             "name": "symfony/clock",
@@ -9509,5 +9493,5 @@
         "php": "^8.3"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }

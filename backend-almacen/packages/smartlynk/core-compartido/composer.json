@@ -1,0 +1,20 @@
+{
+    "name": "smartlynk/core-compartido",
+    "description": "Paquete local compartido para SmartLynk",
+    "type": "library",
+    "version": "dev-main",
+    "autoload": {
+        "psr-4": {
+            "smartlynk\\Core\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "smartlynk\\Core\\SharedServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
