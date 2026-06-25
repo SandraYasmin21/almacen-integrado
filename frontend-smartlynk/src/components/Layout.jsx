@@ -32,12 +32,11 @@ const navItems = [
     section: "MÓDULOS",
     subItems: [
       { name: "Dashboard", path: "/almacen/dashboard" },
-      { name: "Estado de Stock", path: "/almacen/stock" },
-      { name: "Recepción de Mercancía", path: "/almacen/recepcion" },
-      { name: "Solicitud de materiales", path: "/almacen/ordenes-compra" },
+      { name: "Inventario", path: "/almacen/stock" },
+      { name: "Entradas", path: "/almacen/recepcion" },
+      // { name: "Órdenes de Compra", path: "/almacen/ordenes-compra" },
       { name: "Ajustes y Auditorías", path: "/almacen/ajustes" },
-      { name: "Historial y Bitácora", path: "/almacen/historial" },
-    ],
+    ], 
   },
   {
     name: "Mostrador",
@@ -46,9 +45,11 @@ const navItems = [
     defaultPath: "/mostrador/terminal",
     section: "MÓDULOS",
     subItems: [
-      { name: "Terminal de Escáner", path: "/mostrador/terminal" },
-      { name: "Historial de Resguardos y prestamos", path: "/mostrador/resguardos" },
+      { name: "Salidas", path: "/mostrador/terminal" },
+      // { name: "Despacho de Ventas", path: "/mostrador/despacho" },
+      { name: "Resguardos y Préstamos", path: "/mostrador/resguardos" },
       { name: "Devoluciones", path: "/mostrador/devoluciones" },
+      { name: "Historial y Bitácora", path: "/mostrador/historial" },
     ],
   },
   {
@@ -61,19 +62,6 @@ const navItems = [
       { name: "Directorio", path: "/empleados/directorio" },
       { name: "Resguardos", path: "/empleados/resguardos" },
       { name: "Préstamos Pendientes", path: "/empleados/prestamos" },
-      { name: "Control de Usuarios", path: "/empleados/perfiles-kiosco" },
-    ],
-  },
-  {
-    name: "Operaciones Externas",
-    icon: TruckIcon,
-    path: "/operaciones",
-    defaultPath: "/operaciones/gestor-documental",
-    section: "MÓDULOS",
-    subItems: [
-      { name: "Ventas Ocasionales", path: "/operaciones/ventas-ocasionales" },
-      { name: "Control de Facturas", path: "/operaciones/gestor-documental" },
-      { name: "Hojas de entrega Externos", path: "/operaciones/hojas-entrega" },
     ],
   },
   {

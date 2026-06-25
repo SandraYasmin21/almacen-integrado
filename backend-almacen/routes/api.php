@@ -210,17 +210,3 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
         Route::get('/bitacora', [FlotillaController::class, 'bitacora']);
     });
 });
-
-// ─── Kiosco de Autoservicio (Rutas públicas/protegidas por PIN) ──────────────
-Route::prefix('kiosco')->group(function () {
-    Route::post('/login', [\App\Http\Controllers\KioscoAuthController::class, 'login']);
-    
-    // Operaciones del Kiosco (Salidas, Devoluciones, Resguardos)
-    Route::post('/prestamos/salida', [\App\Http\Controllers\KioscoOperacionesController::class, 'registrarSalidaPrestamo']);
-    Route::post('/prestamos/devolucion', [\App\Http\Controllers\KioscoOperacionesController::class, 'registrarDevolucionPrestamo']);
-    
-    Route::post('/resguardos/firma', [\App\Http\Controllers\KioscoOperacionesController::class, 'registrarResguardoFirma']);
-    
-    Route::post('/flotilla/salida', [\App\Http\Controllers\KioscoOperacionesController::class, 'salidaVehiculo']);
-    Route::post('/flotilla/regreso', [\App\Http\Controllers\KioscoOperacionesController::class, 'regresoVehiculo']);
-});
