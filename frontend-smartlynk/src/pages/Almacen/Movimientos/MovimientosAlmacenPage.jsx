@@ -95,7 +95,6 @@ export default function MovimientosAlmacenPage({ movimientosRecientes = [] }) {
                                                             <span className="text-sm font-bold text-gray-800">{mov.cantidad_detalles} artículo{mov.cantidad_detalles !== 1 ? 's' : ''}</span>
                                                             <p className="text-xs text-gray-500">{mov.fecha}</p>
                                                         </div>
-                                                        <span className="text-gray-400 group-hover:text-blue-600 ml-2">→</span>
                                                     </div>
                                                 </button>
                                             ))}

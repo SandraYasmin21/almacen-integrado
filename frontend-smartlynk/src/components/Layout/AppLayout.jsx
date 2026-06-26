@@ -98,8 +98,8 @@ async function syncSheets() {
       headers: { "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content },
     });
     const d = await res.json();
-    toast(d.success ? "✓ Google Sheets actualizado" : "✗ Error al sincronizar", d.success ? "success" : "error");
-  } catch { toast("✗ Error de conexión", "error"); }
+    toast(d.success ? "Google Sheets actualizado" : "Error al sincronizar", d.success ? "success" : "error");
+  } catch { toast("Error de conexión", "error"); }
 }
 
 function exportExcel(section = "inventario") {

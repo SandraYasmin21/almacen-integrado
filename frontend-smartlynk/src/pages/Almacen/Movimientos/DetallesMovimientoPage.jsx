@@ -22,7 +22,7 @@ export default function DetallesMovimientoPage({ movimiento = {}, detalles = [] 
                             onClick={() => router.visit('/movimientos')}
                             className="px-6 py-2 bg-white text-blue-800 font-bold rounded-lg hover:bg-gray-100 transition-colors"
                         >
-                            ← Volver
+                            Volver
                         </button>
                     </div>
 

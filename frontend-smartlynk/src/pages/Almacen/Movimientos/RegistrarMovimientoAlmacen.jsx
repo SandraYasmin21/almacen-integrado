@@ -362,7 +362,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                     onClick={() => navigate('/mostrador')}
                                     className="w-full mt-8 px-4 py-3 bg-slate-100 text-slate-700 font-semibold rounded-full hover:bg-slate-200 transition-colors shadow-sm"
                                 >
-                                    ← Volver
+                                    Volver
                                 </button>
                     </div>
                 </div>
@@ -387,7 +387,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                         onClick={() => navigate('/mostrador')}
                         className="px-6 py-2 bg-white text-slate-700 font-bold rounded-full hover:bg-slate-100 transition-colors border border-slate-200 shadow-sm hover:-translate-y-0.5 transform"
                     >
-                        ← Volver
+                        Volver
                     </button>
                 </div>
 
@@ -468,7 +468,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                                                     onClick={() => handleEliminarSerie(s.id)}
                                                                                     className="text-red-500 hover:text-red-700 font-bold"
                                                                                 >
-                                                                                    ✕
+                                                                                    Eliminar
                                                                                 </button>
                                                                             </div>
                                                                         ))}
@@ -910,7 +910,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                         onClick={() => navigate('/mostrador')}
                                         className="flex-1 px-6 py-3 bg-gray-500 text-white font-bold rounded-lg hover:bg-gray-600 transition-colors"
                                     >
-                                        ← Volver
+                                        Volver
                                     </button>
                                     <button
                                         onClick={handleConfirmarMovimiento}

@@ -42,7 +42,7 @@ function ResultModal({ result, onClose }) {
     <PremiumModal className="max-w-3xl p-0" onBackdropClick={onClose}>
       <div className="flex items-start justify-between border-b border-slate-100 p-5 bg-slate-50">
         <div>
-          <h3 className="text-lg font-bold text-slate-900">Entrada registrada con éxito ✓</h3>
+          <h3 className="text-lg font-bold text-slate-900">Entrada registrada con éxito</h3>
           <p className="mt-1 text-sm text-slate-500">
             Se ingresaron {result?.cantidad ?? 0} unidades totales al almacén.
           </p>
