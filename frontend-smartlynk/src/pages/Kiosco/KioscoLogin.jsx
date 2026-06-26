@@ -12,7 +12,12 @@ export default function KioscoLogin() {
 
   const handleNumpadClick = (num) => {
     if (activeInput === "gafete") {
-      if (gafete.length < 10) setGafete((prev) => prev + num);
+      setGafete((prev) => {
+        if (prev.length >= 5) return prev;
+        const nextGafete = prev + num;
+        if (nextGafete.length === 5) setActiveInput("pin");
+        return nextGafete;
+      });
     } else {
       if (pin.length < 6) setPin((prev) => prev + num);
     }
