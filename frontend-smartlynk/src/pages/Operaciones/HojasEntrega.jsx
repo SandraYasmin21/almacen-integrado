@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { DocumentArrowDownIcon, PlusIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { authHeaders } from "@/lib/auth";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 
@@ -83,7 +82,7 @@ export default function HojasEntrega() {
     try {
       const response = await fetch(`${API}/api/documentos-operacion/${form.tipo}/pdf`, {
         method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json", Accept: "application/json" }),
+        headers: { "Content-Type": "application/json", Accept: "application/pdf" },
         body: JSON.stringify({
           fecha: form.fecha,
           recibe: form.recibe,
@@ -95,9 +94,6 @@ export default function HojasEntrega() {
         }),
       });
 
-      if (response.status === 401) {
-        throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
-      }
       if (!response.ok) throw new Error("No se pudo generar el PDF");
 
       const blob = await response.blob();

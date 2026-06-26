@@ -70,6 +70,9 @@ Route::prefix('auth')->group(function () {
     });
 });
 
+Route::post('documentos-operacion/{tipo}/pdf', [DocumentoOperacionController::class, 'generarPdf'])
+    ->middleware('throttle:api-general');
+
 // ============================================================
 // Modulos internos protegidos
 // CORS: aplica globalmente desde config/cors.php
@@ -83,7 +86,6 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::post('sync-sheets', [DashboardController::class, 'syncSheets']);
     Route::get('export/excel', [DashboardController::class, 'exportExcel']);
     Route::get('export/pdf', [DashboardController::class, 'exportPDF']);
-    Route::post('documentos-operacion/{tipo}/pdf', [DocumentoOperacionController::class, 'generarPdf']);
 
     Route::get('/almacen/dashboard', [AlmacenController::class, 'dashboardStats']);
     Route::post('/almacen/entrada/importar-csv', [AlmacenController::class, 'importarCSV']);
