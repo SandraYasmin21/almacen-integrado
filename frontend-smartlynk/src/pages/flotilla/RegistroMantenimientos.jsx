@@ -27,6 +27,13 @@ import { DatePicker } from '../../components/ui/date-picker';
 import { SelectPremium } from '../../components/ui/SelectPremium';
 import StatusBadge from '../../components/StatusBadge';
 
+const API = import.meta.env.VITE_API_URL ?? '';
+const authHeaders = () => ({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('smartlynk_token') ?? ''}`,
+});
+
 const mantenimientoSchema = z.object({
     vehiculo_id: z.string().min(1, "Obligatorio"),
     fecha: z.string().min(1, "Obligatorio"),
@@ -77,6 +84,24 @@ function FilterPopover({ title, options, selected, onChange }) {
 export default function RegistroMantenimientos() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editData, setEditData] = useState(null);
+    const [registros, setRegistros] = useState([]);
+    const [vehiculos, setVehiculos] = useState([]);
+
+    const loadData = async () => {
+        try {
+            const [registrosResponse, vehiculosResponse] = await Promise.all([
+                fetch(`${API}/api/flotilla/registros`, { headers: authHeaders() }),
+                fetch(`${API}/api/flotilla/vehiculos/activos`, { headers: authHeaders() }),
+            ]);
+            if (!registrosResponse.ok || !vehiculosResponse.ok) throw new Error('No se pudieron cargar los mantenimientos');
+            setRegistros(await registrosResponse.json());
+            setVehiculos(await vehiculosResponse.json());
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
+    useEffect(() => { loadData(); }, []);
 
     const handleNuevoRegistro = () => {
         setEditData(null);
@@ -118,7 +143,7 @@ export default function RegistroMantenimientos() {
     }, [searchTerm]);
 
     const filterOptions = {
-        vehiculo: ['Ranger Blanca', 'Silverado 834', 'RAM Roja', 'F-150 Gris', 'Hilux Plata', 'NP300 Blanca'],
+        vehiculo: vehiculos.map((vehiculo) => vehiculo.nombre),
         tipo: ['Preventivo', 'Correctivo', 'Lectura']
     };
 
@@ -148,15 +173,20 @@ export default function RegistroMantenimientos() {
         });
     };
     
-    // Datos falsos para la tabla
-    const allRegistros = [
-        { vehiculo: "Ranger Blanca", fecha: "05/may/2026", tipo: "preventivo", detalle: "Cambio de aceite y filtros - servicio 10,000 km", km: "45,230 km", costo: "$1,850", subtipo: "Cambio de aceite" },
-        { vehiculo: "Silverado 834", fecha: "02/may/2026", tipo: "correctivo", detalle: "Falla en sistema de frenos - cambio pastillas traseras", km: "38,100 km", costo: "$3,200", subtipo: "Frenos" },
-        { vehiculo: "RAM Roja", fecha: "28/abr/2026", tipo: "lectura", detalle: "Lectura de odometro - sin novedades", km: "72,450 km", costo: "$0", subtipo: "Lectura" },
-        { vehiculo: "F-150 Gris", fecha: "25/abr/2026", tipo: "preventivo", detalle: "Revision general - cambio de llantas delanteras", km: "91,200 km", costo: "$4,500", subtipo: "Llantas" },
-        { vehiculo: "Hilux Plata", fecha: "20/abr/2026", tipo: "correctivo", detalle: "Problema electrico - revision y reparacion de alternador", km: "28,700 km", costo: "$2,100", subtipo: "Sistema electrico" },
-        { vehiculo: "NP300 Blanca", fecha: "15/abr/2026", tipo: "preventivo", detalle: "Servicio de 20,000 km - aceite, filtros, bujias", km: "20,050 km", costo: "$2,300", subtipo: "Servicio mayor" },
-    ];
+    const allRegistros = registros
+        .map((registro) => ({
+            id: registro.id, vehiculo_id: registro.vehiculo_id,
+            vehiculo: registro.vehiculo?.nombre || registro.nombre_vehiculo || 'Sin vehiculo',
+            fecha: registro.fecha, tipo: registro.tipo,
+            detalle: registro.detalle_falla || '-',
+            km: `${Number(registro.kilometraje || 0).toLocaleString('es-MX')} km`,
+            costo: `$${Number(registro.costo || 0).toLocaleString('es-MX')}`,
+            subtipo: registro.tipo_mantenimiento || '-',
+        }))
+        .filter((registro) => !filters.vehiculo.length || filters.vehiculo.includes(registro.vehiculo))
+        .filter((registro) => !filters.tipo.length || filters.tipo.some((tipo) => tipo.toLowerCase() === registro.tipo))
+        .filter((registro) => !debouncedSearch || [registro.vehiculo, registro.detalle, registro.subtipo]
+            .some((value) => value.toLowerCase().includes(debouncedSearch.toLowerCase())));
 
     const totalRegistros = allRegistros.length;
     const totalPages = Math.ceil(totalRegistros / rowsPerPage) || 1;
@@ -264,8 +294,8 @@ export default function RegistroMantenimientos() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {paginatedRegistros.map((r, i) => (
-                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                            {paginatedRegistros.map((r) => (
+                                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="truncate px-4 py-4 font-bold text-slate-800">{r.vehiculo}</td>
                                     <td className="truncate px-4 py-4 text-slate-500">{r.fecha}</td>
                                     <td className="px-4 py-4 text-center">
@@ -285,6 +315,9 @@ export default function RegistroMantenimientos() {
                                     </td>
                                 </tr>
                             ))}
+                            {paginatedRegistros.length === 0 && (
+                                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">No hay mantenimientos registrados.</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -344,12 +377,12 @@ export default function RegistroMantenimientos() {
             </div>
 
             {/* Modal Nuevo Registro */}
-            <NuevoRegistroModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editData={editData} />
+            <NuevoRegistroModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editData={editData} vehiculos={vehiculos} onSaved={loadData} />
         </div>
     );
 }
 
-function NuevoRegistroModal({ isOpen, onClose, editData }) {
+function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
     const { register, handleSubmit, setValue, watch, reset, formState: { errors }, control } = useForm({
         resolver: zodResolver(mantenimientoSchema),
         defaultValues: {
@@ -360,8 +393,8 @@ function NuevoRegistroModal({ isOpen, onClose, editData }) {
     useEffect(() => {
         if (isOpen) {
             if (editData) {
-                const vId = editData.vehiculo === "Ranger Blanca" ? "1" : "2"; 
-                setValue('vehiculo_id', vId);
+                setValue('vehiculo_id', String(editData.vehiculo_id));
+                setValue('fecha', editData.fecha);
                 setValue('tipo', editData.tipo);
                 setValue('detalle_falla', editData.detalle || "");
                 setValue('kilometraje', editData.km ? editData.km.replace(' km', '').replace(/,/g, '') : "");
@@ -375,9 +408,24 @@ function NuevoRegistroModal({ isOpen, onClose, editData }) {
 
     const tipoMantenimiento = watch('tipo');
 
-    const onSubmit = (data) => {
-        toast.success("Registro de mantenimiento guardado correctamente (simulación)");
-        onClose();
+    const onSubmit = async (data) => {
+        try {
+            const response = await fetch(`${API}/api/flotilla/registros${editData ? `/${editData.id}` : ''}`, {
+                method: editData ? 'PUT' : 'POST', headers: authHeaders(),
+                body: JSON.stringify({
+                    vehiculo_id: Number(data.vehiculo_id), fecha: data.fecha, tipo: data.tipo,
+                    detalle_falla: data.detalle_falla || null, kilometraje: Number(data.kilometraje),
+                    costo: Number(data.costo || 0), tipo_mantenimiento: data.subtipo || null,
+                }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || result.mensaje || 'No se pudo guardar el mantenimiento');
+            toast.success(editData ? 'Mantenimiento actualizado correctamente' : 'Mantenimiento registrado correctamente');
+            await onSaved();
+            onClose();
+        } catch (error) {
+            toast.error(error.message);
+        }
     };
 
     return (
@@ -418,10 +466,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData }) {
                                                 value={field.value} 
                                                 onChange={field.onChange} 
                                                 placeholder="Seleccionar vehículo" 
-                                                options={[
-                                                    { value: '1', label: 'Ranger Blanca' },
-                                                    { value: '2', label: 'Silverado 834' }
-                                                ]}
+                                                options={vehiculos.map((vehiculo) => ({ value: String(vehiculo.id), label: vehiculo.nombre }))}
                                             />
                                         )}
                                     />
