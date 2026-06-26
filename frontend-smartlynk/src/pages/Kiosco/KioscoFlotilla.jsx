@@ -93,7 +93,7 @@ export default function KioscoFlotilla() {
                   </span>
                 )}
               </div>
-              <div className="text-6xl mb-4">🛻</div>
+              <TruckIcon className="mb-4 h-16 w-16 text-emerald-400" />
               <h3 className="text-2xl font-bold text-white mb-1">Ford Ranger Blanca</h3>
               <p className="text-slate-400 font-mono mb-8">PLACA: AB-123-CD</p>
               

@@ -1026,7 +1026,7 @@ export default function CatalogoCentral() {
                               {cat}
                             </SelectItem>
                           ))}
-                        <SelectItem value="NUEVA">➕ Agregar nueva...</SelectItem>
+                        <SelectItem value="NUEVA">Agregar nueva...</SelectItem>
                       </SelectContent>
                     </Select>
                   </Field>
@@ -1061,7 +1061,7 @@ export default function CatalogoCentral() {
                               {sub}
                             </SelectItem>
                           ))}
-                        <SelectItem value="NUEVA">➕ Agregar nueva...</SelectItem>
+                        <SelectItem value="NUEVA">Agregar nueva...</SelectItem>
                       </SelectContent>
                     </Select>
                   </Field>

@@ -6,7 +6,10 @@ import { PremiumModal } from "../../components/ui/premium";
 import {
   UploadCloud,
   AlertTriangle,
-  XCircle
+  XCircle,
+  KeyRound,
+  Package,
+  Printer
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_URL ?? "";
@@ -50,7 +53,7 @@ function ResultModal({ result, onClose }) {
       <div className="max-h-[55vh] overflow-y-auto p-6 bg-white">
         {isConsumible ? (
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-800 flex items-center gap-3 font-medium">
-            <span className="text-2xl">📦</span>
+            <Package className="h-6 w-6 shrink-0" />
             Se sumaron cantidades al stock general. No hay etiquetas individuales para imprimir.
           </div>
         ) : (
@@ -81,7 +84,8 @@ function ResultModal({ result, onClose }) {
       <div className="flex flex-col gap-3 border-t border-slate-100 p-5 sm:flex-row sm:justify-end bg-slate-50">
         {skus.length > 0 && (
           <button onClick={imprimir} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-blue-700 shadow-sm">
-            🖨️ Imprimir Etiquetas
+            <Printer className="h-4 w-4" />
+            Imprimir Etiquetas
           </button>
         )}
         <button onClick={onClose} className="rounded-xl bg-white border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 shadow-sm">
@@ -453,9 +457,15 @@ export default function Entrada() {
                     </div>
                     <div>
                       {art.requiere_serie ? (
-                        <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">🔑 SERIE (Añadir Individual)</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                          <KeyRound className="h-3 w-3" />
+                          SERIE (Añadir Individual)
+                        </span>
                       ) : (
-                        <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">📦 GENERAL</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                          <Package className="h-3 w-3" />
+                          GENERAL
+                        </span>
                       )}
                     </div>
                   </div>

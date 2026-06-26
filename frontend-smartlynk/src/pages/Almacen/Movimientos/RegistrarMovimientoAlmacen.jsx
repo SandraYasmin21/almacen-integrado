@@ -346,7 +346,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                         className="w-full p-6 bg-green-500 text-white font-bold rounded-2xl hover:bg-green-600 transition-all shadow-sm hover:-translate-y-0.5"
                                     >
                                         <div className="text-sm uppercase tracking-widest opacity-90">Movimiento</div>
-                                        <div className="text-2xl mt-2">📥 Entrada</div>
+                                        <div className="text-2xl mt-2">Entrada</div>
                                     </button>
 
                                     <button
@@ -354,7 +354,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                         className="w-full p-6 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all shadow-sm hover:-translate-y-0.5"
                                     >
                                         <div className="text-sm uppercase tracking-widest opacity-90">Movimiento</div>
-                                        <div className="text-2xl mt-2">📤 Salida</div>
+                                        <div className="text-2xl mt-2">Salida</div>
                                     </button>
                                 </div>
 
@@ -375,8 +375,6 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
     const colorBorder = tipoMovimiento === "entrada" ? "border-green-200" : "border-red-200";
     const colorBadge = tipoMovimiento === "entrada" ? "bg-green-500" : "bg-red-500";
     const titulo = tipoMovimiento === "entrada" ? "Entrada" : "Salida";
-    const icono = tipoMovimiento === "entrada" ? "📥" : "📤";
-
     return (
         <div className="min-h-screen bg-slate-50">
             <div className="p-8 max-w-7xl mx-auto">
@@ -399,7 +397,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                 {/* Badge del tipo */}
                                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm !ring-0 mb-6 text-center">
                                     <span className={`${colorBadge} text-white px-4 py-2 rounded-full font-bold text-lg inline-block shadow-sm`}>
-                                        {icono} {titulo.toUpperCase()}
+                                        {titulo.toUpperCase()}
                                     </span>
                                 </div>
 
@@ -420,7 +418,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                     )}
                                                     <p className="text-sm text-slate-600">Stock disponible: <span className="font-bold text-slate-800">{articuloSeleccionado.stock_disponible} {articuloSeleccionado.requiere_serie ? 'unidades' : articuloSeleccionado.unidad_medida}</span></p>
                                                     {articuloSeleccionado.requiere_serie && (
-                                                        <p className="text-xs text-blue-600 font-semibold mt-1">🔑 Requiere número de serie</p>
+                                                        <p className="text-xs text-blue-600 font-semibold mt-1">Requiere número de serie</p>
                                                     )}
                                                 </div>
                                                 <button
@@ -481,7 +479,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                             {/* Orden de Venta para SALIDA - ENTRADA con serie */}
                                                             {tipoMovimiento === "salida" && (
                                                                 <div className="mb-3 bg-amber-50 p-3 rounded border border-amber-200">
-                                                                    <label className="block text-xs font-medium text-gray-700 mb-2">📋 Orden de Venta (Opcional)</label>
+                                                                    <label className="block text-xs font-medium text-gray-700 mb-2">Orden de Venta (Opcional)</label>
                                                                     {ordenVentaDetalleSeleccionada ? (
                                                                         <div className="bg-green-50 p-2 rounded border border-green-200">
                                                                             <div className="text-xs">
@@ -536,7 +534,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                                 disabled={seriesAgregadas.length === 0}
                                                                 className="w-full px-4 py-2.5 bg-green-500 text-white rounded-full text-sm hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
                                                             >
-                                                                ✓ Agregar {seriesAgregadas.length} serie{seriesAgregadas.length !== 1 ? 's' : ''}
+                                                                Agregar {seriesAgregadas.length} serie{seriesAgregadas.length !== 1 ? 's' : ''}
                                                             </button>
                                                         </div>
                                                     ) : (
@@ -563,7 +561,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                                     </select>
                                                                     {/* Orden de Venta para SALIDA */}
                                                                     <div className="mb-3">
-                                                                        <label className="block text-xs font-medium text-gray-700 mb-2">📋 Orden de Venta (Opcional)</label>
+                                                                        <label className="block text-xs font-medium text-gray-700 mb-2">Orden de Venta (Opcional)</label>
                                                                         {ordenVentaDetalleSeleccionada ? (
                                                                             <div className="bg-green-50 p-2 rounded border border-green-200">
                                                                                 <div className="text-xs">
@@ -617,11 +615,11 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                                         disabled={!serieSeleccionada}
                                                                         className="w-full px-4 py-2.5 bg-green-500 text-white rounded-full text-sm hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-sm hover:-translate-y-0.5 transition-all"
                                                                     >
-                                                                        ✓ Agregar
+                                                                        Agregar
                                                                     </button>
                                                                 </>
                                                             ) : (
-                                                                <p className="p-3 text-center text-red-600 text-sm font-semibold bg-red-50 rounded">📭 No hay unidades disponibles</p>
+                                                                <p className="p-3 text-center text-red-600 text-sm font-semibold bg-red-50 rounded">No hay unidades disponibles</p>
                                                             )}
                                                         </div>
                                                     )}
@@ -643,7 +641,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                     {/* Orden de Venta para SALIDA */}
                                                     {tipoMovimiento === "salida" && (
                                                         <div className="mb-3">
-                                                            <label className="block text-xs font-medium text-gray-700 mb-2">📋 Orden de Venta (Opcional)</label>
+                                                            <label className="block text-xs font-medium text-gray-700 mb-2">Orden de Venta (Opcional)</label>
                                                             {ordenVentaDetalleSeleccionada ? (
                                                                 <div className="bg-green-50 p-2 rounded border border-green-200">
                                                                     <div className="text-xs">
@@ -697,7 +695,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                         onClick={handleAgregarArticulo}
                                                         className="w-full px-3 py-2 bg-green-500 text-white rounded text-sm hover:bg-green-600 font-semibold"
                                                     >
-                                                        ✓ Agregar
+                                                        Agregar
                                                     </button>
                                                 </div>
                                             )}
@@ -736,7 +734,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                                     <div className="text-right">
                                                                         <p className="text-xs font-bold text-green-600">Stock: {art.stock_disponible}</p>
                                                                         {art.requiere_serie && (
-                                                                            <p className="text-xs text-blue-600 font-semibold">🔑 Con serie</p>
+                                                                            <p className="text-xs text-blue-600 font-semibold">Con serie</p>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -885,7 +883,7 @@ export default function RegistrarMovimientoAlmacen({ empleados = [], proveedores
                                                             )}
                                                             {art.orden_venta_id && (
                                                                 <p className="text-xs text-green-600 font-semibold mt-1">
-                                                                    📋 Orden de Venta: <span className="bg-green-100 px-2 py-0.5 rounded">#{art.orden_venta_id}</span>
+                                                                    Orden de Venta: <span className="bg-green-100 px-2 py-0.5 rounded">#{art.orden_venta_id}</span>
                                                                 </p>
                                                             )}
                                                         </div>

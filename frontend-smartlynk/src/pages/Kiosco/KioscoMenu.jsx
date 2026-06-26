@@ -210,7 +210,7 @@ export default function KioscoMenu() {
             <div className="rounded-3xl bg-slate-950 p-5">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-4xl">🛻</p>
+                  <TruckIcon className="h-12 w-12 text-emerald-400" />
                   <h3 className="mt-3 text-xl font-black text-white">Ford Ranger Blanca</h3>
                   <p className="font-mono text-sm text-slate-500">PLACA: AB-123-CD</p>
                 </div>

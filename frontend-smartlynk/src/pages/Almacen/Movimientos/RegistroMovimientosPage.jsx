@@ -220,7 +220,7 @@ export default function RegistroMovimientosPage() {
                                                                 <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
                                                                     mov.tipo_movimiento === 'ENTRADA' ? 'bg-green-500' : 'bg-red-500'
                                                                 }`}>
-                                                                    {mov.tipo_movimiento === 'ENTRADA' ? '📥 Entrada' : '📤 Salida'}
+                                                                    {mov.tipo_movimiento === 'ENTRADA' ? 'Entrada' : 'Salida'}
                                                                 </span>
                                                             </td>
                                                             <td className="p-3 text-slate-800 truncate" title={mov.notas}>{mov.notas}</td>
@@ -317,7 +317,7 @@ export default function RegistroMovimientosPage() {
                                                                 <span className={`px-3 py-1 rounded-full text-white text-xs font-bold ${
                                                                     det.movimiento_tipo === 'ENTRADA' ? 'bg-green-500' : 'bg-red-500'
                                                                 }`}>
-                                                                    {det.movimiento_tipo === 'ENTRADA' ? '📥 Entrada' : '📤 Salida'}
+                                                                    {det.movimiento_tipo === 'ENTRADA' ? 'Entrada' : 'Salida'}
                                                                 </span>
                                                             </td>
                                                             <td className="p-3 text-slate-700">

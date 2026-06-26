@@ -38,7 +38,6 @@ function SmartlynkLogo() {
         <div className="flex items-baseline gap-0">
           <span className="text-white font-bold text-base leading-none tracking-tight">Smart</span>
           <span className="text-[#2d8bff] font-bold text-base leading-none tracking-tight">lynk</span>
-          <span className="text-[#2d8bff] text-xs ml-0.5 leading-none">®</span>
         </div>
         <p className="text-[#6b7fa3] text-[9px] tracking-[2px] uppercase mt-0.5">Consultores</p>
       </div>
@@ -105,7 +104,7 @@ async function syncSheets() {
 
 function exportExcel(section = "inventario") {
   window.location.href = `/api/export/excelsection=${section}`;
-  toast("📥 Descargando Excel...", "info");
+  toast("Descargando Excel...", "info");
 }
 
 // ── Buscador global ───────────────────────────────

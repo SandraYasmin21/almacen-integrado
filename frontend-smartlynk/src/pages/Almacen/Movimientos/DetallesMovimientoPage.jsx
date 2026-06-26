@@ -40,7 +40,7 @@ export default function DetallesMovimientoPage({ movimiento = {}, detalles = [] 
                                         <span className={`px-3 py-1 rounded text-white text-sm font-bold inline-block ${
                                             movimiento.tipo_movimiento === 'ENTRADA' ? 'bg-green-500' : 'bg-red-500'
                                         }`}>
-                                            {movimiento.tipo_movimiento === 'ENTRADA' ? '📥 Entrada' : '📤 Salida'}
+                                            {movimiento.tipo_movimiento === 'ENTRADA' ? 'Entrada' : 'Salida'}
                                         </span>
                                     </article>
 
