@@ -30,9 +30,6 @@ import HojasEntrega from './pages/Operaciones/HojasEntrega';
 
 import KioscoLogin from './pages/Kiosco/KioscoLogin';
 import KioscoMenu from './pages/Kiosco/KioscoMenu';
-import KioscoPrestamos from './pages/Kiosco/KioscoPrestamos';
-import KioscoFlotilla from './pages/Kiosco/KioscoFlotilla';
-import KioscoResguardos from './pages/Kiosco/KioscoResguardos';
 
 import RegistroMovimientosPage from './pages/Almacen/Movimientos/RegistroMovimientosPage';
 import DetalleMovimientoMostrador from './pages/Mostrador/DetalleMovimiento';
@@ -54,9 +51,9 @@ function App() {
         {/* Rutas Standalone (Kiosco) */}
         <Route path="/kiosco/login" element={<KioscoLogin />} />
         <Route path="/kiosco/menu" element={<KioscoMenu />} />
-        <Route path="/kiosco/prestamos" element={<KioscoPrestamos />} />
-        <Route path="/kiosco/vehiculos" element={<KioscoFlotilla />} />
-        <Route path="/kiosco/resguardos" element={<KioscoResguardos />} />
+        <Route path="/kiosco/prestamos" element={<Navigate to="/kiosco/menu" replace />} />
+        <Route path="/kiosco/vehiculos" element={<Navigate to="/kiosco/menu" replace />} />
+        <Route path="/kiosco/resguardos" element={<Navigate to="/kiosco/menu" replace />} />
 
         {/* Grupo de rutas protegidas con Layout fijo */}
         <Route element={<PrivatePage><Layout /></PrivatePage>}>

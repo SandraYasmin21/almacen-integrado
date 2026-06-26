@@ -40,7 +40,7 @@ export default function KioscoLogin() {
       if (gafete === "14502" && pin === "1234") {
         toast.success("Bienvenido al Kiosco de Autoservicio");
         // Guardar sesión de kiosco (simulada)
-        localStorage.setItem("kiosco_session", JSON.stringify({ gafete: "14502", modulos: ["prestamos", "vehiculos"] }));
+        localStorage.setItem("kiosco_session", JSON.stringify({ gafete: "14502", modulos: ["prestamos", "vehiculos", "resguardos"] }));
         navigate("/kiosco/menu");
       } else {
         toast.error("Credenciales incorrectas o perfil suspendido");
