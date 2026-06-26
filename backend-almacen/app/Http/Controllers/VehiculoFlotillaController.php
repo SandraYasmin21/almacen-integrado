@@ -26,7 +26,7 @@ class VehiculoFlotillaController extends Controller
     {
         $vehiculos = VehiculoFlotilla::where('estado', 'ACTIVO')
             ->orderBy('nombre')
-            ->get(['id', 'nombre', 'placa', 'modelo', 'numero']);
+            ->get(['id', 'nombre', 'placa', 'placas', 'modelo', 'numero']);
         return response()->json($vehiculos);
     }
 
@@ -57,6 +57,9 @@ class VehiculoFlotillaController extends Controller
         $validated['grupo']         = isset($validated['grupo']) ? strip_tags(trim($validated['grupo'])) : null;
         $validated['certificacion'] = isset($validated['certificacion']) ? strip_tags(trim($validated['certificacion'])) : null;
         $validated['estado']        = 'ACTIVO';
+
+        // Mantener compatibilidad con los datos importados que usaban "placas".
+        $validated['placas'] = $validated['placa'];
 
         $vehiculo = VehiculoFlotilla::create($validated);
 
@@ -107,6 +110,10 @@ class VehiculoFlotillaController extends Controller
             if (isset($validated[$campo])) {
                 $validated[$campo] = strip_tags(trim($validated[$campo]));
             }
+        }
+
+        if (array_key_exists('placa', $validated)) {
+            $validated['placas'] = $validated['placa'];
         }
 
         $vehiculo->update($validated);

@@ -17,6 +17,7 @@ class VehiculoFlotilla extends Model
         'numero',
         'estado_gps',
         'placa',
+        'placas',
         'poliza_seguro',
         'grupo',
         'certificacion',

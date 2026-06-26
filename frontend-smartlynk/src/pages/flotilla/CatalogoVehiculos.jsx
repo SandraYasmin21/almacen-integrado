@@ -22,6 +22,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { SelectPremium } from '../../components/ui/SelectPremium';
 import StatusBadge from '../../components/StatusBadge';
 
+const API = import.meta.env.VITE_API_URL ?? '';
+const authHeaders = () => ({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('smartlynk_token') ?? ''}`,
+});
+
 const vehiculoSchema = z.object({
     nombre_alias: z.string().min(1, "Obligatorio"),
     modelo: z.string().min(1, "Obligatorio"),
@@ -74,6 +81,23 @@ function FilterPopover({ title, options, selected, onChange }) {
 export default function CatalogoVehiculos() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editData, setEditData] = useState(null);
+    const [vehiculos, setVehiculos] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const loadVehiculos = async () => {
+        setIsLoading(true);
+        try {
+            const response = await fetch(`${API}/api/flotilla/vehiculos`, { headers: authHeaders() });
+            if (!response.ok) throw new Error('No se pudo cargar el catalogo');
+            setVehiculos(await response.json());
+        } catch (error) {
+            toast.error(error.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => { loadVehiculos(); }, []);
 
     const handleNuevoVehiculo = () => {
         setEditData(null);
@@ -140,15 +164,29 @@ export default function CatalogoVehiculos() {
         });
     };
     
-    // Datos falsos para la tabla (simulación de backend)
-    const allVehiculos = [
-        { alias: "Ranger Blanca", no: "830", modelo: "Ford Ranger 2021", placa: "ABC-123-D", niv: "1FTER4FH5MLD...", tipo: "Pickup", gps: "ACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
-        { alias: "Silverado 834", no: "831", modelo: "Chev. Silverado 2022", placa: "XYZ-456-E", niv: "3GCUKREC4AG1...", tipo: "Camioneta", gps: "ACTIVO", certificacion: "VIG 20/09/25", estado: "ACTIVO" },
-        { alias: "RAM Roja", no: "832", modelo: "Dodge RAM 1500 2020", placa: "TMX-1234", niv: "1D7RB1CT2AS1...", tipo: "Pickup", gps: "INACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
-        { alias: "F-150 Gris", no: "833", modelo: "Ford F-150 XLT 2019", placa: "TAM-5678", niv: "1FTFW1EF6BFB...", tipo: "Pickup", gps: "SIN UNIDAD", certificacion: "Sin cert.", estado: "INACTIVO" },
-        { alias: "Hilux Plata", no: "834", modelo: "Toyota Hilux 2023", placa: "TMP-9012", niv: "MR0GX22G4001...", tipo: "Pickup", gps: "ACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
-        { alias: "NP300 Blanca", no: "835", modelo: "Nissan NP300 2022", placa: "TPP-3456", niv: "3N6AD33A9YK8...", tipo: "Camioneta", gps: "ACTIVO", certificacion: "Certificada", estado: "ACTIVO" },
-    ];
+    const allVehiculos = vehiculos
+        .map((v) => ({
+            id: v.id,
+            alias: v.nombre,
+            no: v.numero || '-',
+            modelo: v.modelo,
+            placa: v.placa || v.placas || '-',
+            niv: v.numero_serie,
+            tipo: v.tipo_vehiculo || '-',
+            gps: v.estado_gps || 'SIN UNIDAD',
+            poliza_seguro: v.poliza_seguro || '',
+            certificacion: v.certificacion || '-',
+            estado: v.estado || 'ACTIVO',
+        }))
+        .filter((v) => {
+            const query = debouncedSearch.toLowerCase();
+            const matchesSearch = !query || [v.alias, v.modelo, v.placa, v.niv, v.no]
+                .some((value) => String(value || '').toLowerCase().includes(query));
+            return matchesSearch
+                && (!filters.tipo.length || filters.tipo.includes(v.tipo))
+                && (!filters.gps.length || filters.gps.includes(v.gps))
+                && (!filters.estado.length || filters.estado.includes(v.estado));
+        });
 
     const totalVehiculos = allVehiculos.length;
     const totalPages = Math.ceil(totalVehiculos / rowsPerPage) || 1;
@@ -282,8 +320,8 @@ export default function CatalogoVehiculos() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700">
-                            {paginatedVehiculos.map((v, i) => (
-                                <tr key={i} className="hover:bg-slate-50 transition-colors">
+                            {paginatedVehiculos.map((v) => (
+                                <tr key={v.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-4 py-4">
                                         <div>
                                             <div className="font-bold text-slate-800">{v.alias}</div>
@@ -311,6 +349,9 @@ export default function CatalogoVehiculos() {
                                     </td>
                                 </tr>
                             ))}
+                            {!isLoading && paginatedVehiculos.length === 0 && (
+                                <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-500">No hay vehiculos registrados.</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -370,12 +411,12 @@ export default function CatalogoVehiculos() {
             </div>
 
             {/* Modal Nuevo Vehículo */}
-            <NuevoVehiculoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editData={editData} />
+            <NuevoVehiculoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editData={editData} onSaved={loadVehiculos} />
         </div>
     );
 }
 
-function NuevoVehiculoModal({ isOpen, onClose, editData }) {
+function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
     const { register, handleSubmit, setValue, watch, reset, formState: { errors } } = useForm({
         resolver: zodResolver(vehiculoSchema),
         defaultValues: {
@@ -392,7 +433,7 @@ function NuevoVehiculoModal({ isOpen, onClose, editData }) {
                 setValue('placa', editData.placa || "");
                 setValue('numero_interno', editData.no || "");
                 setValue('tipo_vehiculo', editData.tipo || "");
-                setValue('poliza_seguro', "");
+                setValue('poliza_seguro', editData.poliza_seguro || "");
                 setValue('certificacion', editData.certificacion || "");
                 setValue('estado_gps', editData.gps === 'ACTIVO' ? 'ACTIVO' : editData.gps === 'INACTIVO' ? 'INACTIVO' : 'SIN UNIDAD');
             } else {
@@ -403,9 +444,32 @@ function NuevoVehiculoModal({ isOpen, onClose, editData }) {
 
     const estadoGps = watch('estado_gps');
 
-    const onSubmit = (data) => {
-        toast.success("Vehículo registrado correctamente (simulación)");
-        onClose();
+    const onSubmit = async (data) => {
+        const payload = {
+            nombre: data.nombre_alias,
+            modelo: data.modelo,
+            numero_serie: data.niv.toUpperCase(),
+            placa: data.placa.toUpperCase(),
+            numero: data.numero_interno || null,
+            tipo_vehiculo: data.tipo_vehiculo || null,
+            poliza_seguro: data.poliza_seguro || null,
+            certificacion: data.certificacion || null,
+            estado_gps: data.estado_gps,
+        };
+        try {
+            const response = await fetch(`${API}/api/flotilla/vehiculos${editData ? `/${editData.id}` : ''}`, {
+                method: editData ? 'PUT' : 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(payload),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || result.mensaje || 'No se pudo guardar el vehiculo');
+            toast.success(editData ? 'Vehiculo actualizado correctamente' : 'Vehiculo registrado correctamente');
+            await onSaved();
+            onClose();
+        } catch (error) {
+            toast.error(error.message);
+        }
     };
 
     return (
