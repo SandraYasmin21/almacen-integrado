@@ -11,6 +11,7 @@ use App\Http\Controllers\BitacoraViajeController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\CatalogoCentralController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentoOperacionController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\FlotillaDashboardController;
 use App\Http\Controllers\FlotillaKilometrajeController;
@@ -82,6 +83,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::post('sync-sheets', [DashboardController::class, 'syncSheets']);
     Route::get('export/excel', [DashboardController::class, 'exportExcel']);
     Route::get('export/pdf', [DashboardController::class, 'exportPDF']);
+    Route::post('documentos-operacion/{tipo}/pdf', [DocumentoOperacionController::class, 'generarPdf']);
 
     Route::get('/almacen/dashboard', [AlmacenController::class, 'dashboardStats']);
     Route::post('/almacen/entrada/importar-csv', [AlmacenController::class, 'importarCSV']);
