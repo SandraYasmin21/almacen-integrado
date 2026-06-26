@@ -25,6 +25,13 @@ import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { SelectPremium } from '../../components/ui/SelectPremium';
 
+const API = import.meta.env.VITE_API_URL ?? '';
+const authHeaders = () => ({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${localStorage.getItem('smartlynk_token') ?? ''}`,
+});
+
 const gastoSchema = z.object({
     vehiculo_id: z.string().min(1, 'Selecciona un vehículo'),
     fecha: z.string().min(1, 'La fecha es requerida'),
@@ -37,6 +44,25 @@ export default function GastosExtra() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editData, setEditData] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [gastos, setGastos] = useState([]);
+    const [vehiculos, setVehiculos] = useState([]);
+    const [vehiculoFiltro, setVehiculoFiltro] = useState('todos');
+
+    const loadData = async () => {
+        try {
+            const [gastosResponse, vehiculosResponse] = await Promise.all([
+                fetch(`${API}/api/flotilla/gastos-extra`, { headers: authHeaders() }),
+                fetch(`${API}/api/flotilla/vehiculos/activos`, { headers: authHeaders() }),
+            ]);
+            if (!gastosResponse.ok || !vehiculosResponse.ok) throw new Error('No se pudieron cargar los gastos');
+            setGastos(await gastosResponse.json());
+            setVehiculos(await vehiculosResponse.json());
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
+    useEffect(() => { loadData(); }, []);
 
     // Pagination
     const [currentPage, setCurrentPage] = useState(1);
@@ -79,21 +105,9 @@ export default function GastosExtra() {
     useEffect(() => {
         if (isModalOpen) {
             if (editData) {
-                const vehiculosMap = { 'RAM Roja': '1', 'Ranger Blanca': '2', 'Silverado 834': '3', 'F-150 Gris': '4', 'Hilux Plata': '5', 'NP300 Blanca': '6' };
-                const vId = vehiculosMap[editData.vehiculo] || '1';
-                
-                let fechaFormateada = '2026-05-10';
-                if (editData.fecha) {
-                    const meses = { 'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04', 'may': '05', 'jun': '06', 'jul': '07', 'ago': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12' };
-                    const partes = editData.fecha.split('/');
-                    if (partes.length === 3) {
-                        fechaFormateada = `${partes[2]}-${meses[partes[1].toLowerCase()]}-${partes[0].padStart(2, '0')}`;
-                    }
-                }
-
                 reset({
-                    vehiculo_id: vId,
-                    fecha: fechaFormateada,
+                    vehiculo_id: String(editData.vehiculo_id),
+                    fecha: editData.fecha,
                     tipo_gasto: editData.tipo || '',
                     costo: editData.costo || '',
                     observaciones: editData.observaciones || ''
@@ -112,27 +126,40 @@ export default function GastosExtra() {
 
     const onSubmit = async (data) => {
         try {
-            console.log('Datos a guardar:', data);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            toast.success('Gasto extra registrado exitosamente');
+            const response = await fetch(`${API}/api/flotilla/gastos-extra${editData ? `/${editData.id}` : ''}`, {
+                method: editData ? 'PUT' : 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify({
+                    vehiculo_id: Number(data.vehiculo_id), fecha: data.fecha,
+                    tipo: data.tipo_gasto, costo: Number(data.costo),
+                    observaciones: data.observaciones || null,
+                }),
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.message || result.mensaje || 'No se pudo guardar el gasto');
+            toast.success(editData ? 'Gasto actualizado exitosamente' : 'Gasto extra registrado exitosamente');
             setIsModalOpen(false);
             reset();
+            await loadData();
         } catch (error) {
-            toast.error('Error al registrar el gasto');
+            toast.error(error.message);
         }
     };
 
-    // Datos simulados
-    const allGastos = [
-        { id: 1, vehiculo: 'RAM Roja', fecha: '10/may/2026', tipo: 'Combustible', descripcion: 'carga completa de gasolina Magna', costo: 1200, observaciones: 'Estacion Pemex carr. norte km 12' },
-        { id: 2, vehiculo: 'Ranger Blanca', fecha: '09/may/2026', tipo: 'Tenencia 2026', descripcion: 'pago anual de tenencia vehicular', costo: 2800, observaciones: 'Pago realizado en linea' },
-        { id: 3, vehiculo: 'Silverado 834', fecha: '08/may/2026', tipo: 'Lavado completo', descripcion: 'interior y exterior con encerado', costo: 350, observaciones: 'Autolavado Express Matamoros' },
-        { id: 4, vehiculo: 'F-150 Gris', fecha: '07/may/2026', tipo: 'Multa de transito', descripcion: 'exceso de velocidad en zona escolar', costo: 1500, observaciones: 'Infraccion No. 2024-08871' },
-        { id: 5, vehiculo: 'Hilux Plata', fecha: '05/may/2026', tipo: 'Combustible', descripcion: 'carga parcial de gasolina', costo: 600, observaciones: '-' },
-        { id: 6, vehiculo: 'NP300 Blanca', fecha: '03/may/2026', tipo: 'Verificacion vehicular', descripcion: 'Verificacion semestral obligatoria', costo: 400, observaciones: 'Verificentro Zona Norte' },
-    ];
+    const allGastos = gastos
+        .map((gasto) => ({ ...gasto, vehiculo: gasto.vehiculo?.nombre || 'Sin vehiculo', descripcion: '' }))
+        .filter((gasto) => vehiculoFiltro === 'todos' || String(gasto.vehiculo_id) === vehiculoFiltro)
+        .filter((gasto) => !searchTerm || [gasto.vehiculo, gasto.tipo, gasto.observaciones]
+            .some((value) => String(value || '').toLowerCase().includes(searchTerm.toLowerCase())));
 
     const totalGastos = allGastos.length;
+    const totalMes = allGastos.reduce((sum, gasto) => sum + Number(gasto.costo || 0), 0);
+    const gastoMayor = allGastos.reduce((mayor, gasto) => Number(gasto.costo || 0) > Number(mayor?.costo || 0) ? gasto : mayor, null);
+    const totalesPorVehiculo = allGastos.reduce((totales, gasto) => {
+        totales[gasto.vehiculo] = (totales[gasto.vehiculo] || 0) + Number(gasto.costo || 0);
+        return totales;
+    }, {});
+    const vehiculoMayorGasto = Object.entries(totalesPorVehiculo).sort((a, b) => b[1] - a[1])[0]?.[0] || '-';
     const totalPages = Math.ceil(totalGastos / rowsPerPage) || 1;
     const paginatedGastos = allGastos.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
@@ -158,19 +185,19 @@ export default function GastosExtra() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden group transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60">
                     <div className="text-sm font-medium text-slate-500 mb-1">Total mes actual</div>
-                    <div className="text-2xl font-bold text-slate-800">$8,450</div>
+                    <div className="text-2xl font-bold text-slate-800">${totalMes.toLocaleString('es-MX')}</div>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden group transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60">
                     <div className="text-sm font-medium text-slate-500 mb-1">Gasto mayor</div>
-                    <div className="text-2xl font-bold text-slate-800">Combustible</div>
+                    <div className="text-2xl font-bold text-slate-800">{gastoMayor?.tipo || '-'}</div>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden group transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60">
                     <div className="text-sm font-medium text-slate-500 mb-1">Vehículo más gasto</div>
-                    <div className="text-2xl font-bold text-slate-800">RAM Roja</div>
+                    <div className="text-2xl font-bold text-slate-800">{vehiculoMayorGasto}</div>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm relative overflow-hidden group transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60">
                     <div className="text-sm font-medium text-slate-500 mb-1">Registros del mes</div>
-                    <div className="text-2xl font-bold text-slate-800">23</div>
+                    <div className="text-2xl font-bold text-slate-800">{totalGastos}</div>
                 </div>
             </div>
 
@@ -179,13 +206,10 @@ export default function GastosExtra() {
                 <div className="p-4 border-b border-slate-100 flex flex-wrap gap-3 items-center bg-slate-50/50">
                     <div className="w-[180px]">
                         <SelectPremium 
-                            defaultValue="todos" 
+                            value={vehiculoFiltro}
+                            onChange={setVehiculoFiltro}
                             placeholder="Vehículo" 
-                            options={[
-                                { value: 'todos', label: 'Vehículo: Todos' },
-                                { value: 'RAM Roja', label: 'RAM Roja' },
-                                { value: 'Ranger Blanca', label: 'Ranger Blanca' }
-                            ]} 
+                            options={[{ value: 'todos', label: 'Vehiculo: Todos' }, ...vehiculos.map((v) => ({ value: String(v.id), label: v.nombre }))]}
                         />
                     </div>
                     
@@ -248,6 +272,9 @@ export default function GastosExtra() {
                                     </td>
                                 </tr>
                             ))}
+                            {paginatedGastos.length === 0 && (
+                                <tr><td colSpan={6} className="px-6 py-10 text-center text-slate-500">No hay gastos registrados.</td></tr>
+                            )}
                         </tbody>
                     </table>
                 </div>
@@ -350,10 +377,7 @@ export default function GastosExtra() {
                                                     value={field.value} 
                                                     onChange={field.onChange} 
                                                     placeholder="Seleccionar vehículo" 
-                                                    options={[
-                                                        { value: '1', label: 'RAM Roja' },
-                                                        { value: '2', label: 'Ranger Blanca' }
-                                                    ]}
+                                                    options={vehiculos.map((v) => ({ value: String(v.id), label: v.nombre }))}
                                                 />
                                             )}
                                         />
