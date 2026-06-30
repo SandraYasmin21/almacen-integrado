@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { BackspaceIcon, UserIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { setKioscoSession } from "@/lib/kioscoAuth";
 
 export default function KioscoLogin() {
   const navigate = useNavigate();
@@ -39,20 +40,35 @@ export default function KioscoLogin() {
 
     setLoading(true);
     try {
-      // Simulación de login - Conectado al KioscoAuthController más adelante
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (gafete === "14502" && pin === "1234") {
-        toast.success("Bienvenido al Kiosco de Autoservicio");
-        // Guardar sesión de kiosco (simulada)
-        localStorage.setItem("kiosco_session", JSON.stringify({ gafete: "14502", modulos: ["prestamos", "vehiculos", "resguardos"] }));
+      const response = await fetch("/api/kiosco/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          numero_gafete: gafete,
+          pin: pin
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Bienvenido ${data.empleado.nombre_completo}`);
+        // Guardar sesión de kiosco (real)
+        setKioscoSession({
+          token: data.token,
+          empleado: data.empleado,
+          permisos: data.permisos,
+        });
         navigate("/kiosco/menu");
       } else {
-        toast.error("Credenciales incorrectas o perfil suspendido");
+        toast.error(data.error || "Credenciales incorrectas o perfil suspendido");
         setPin("");
       }
     } catch (error) {
-      toast.error("Error de conexión");
+      toast.error("Error de conexión con el servidor");
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import SignatureCanvas from "react-signature-canvas";
 import { DocumentCheckIcon, ArrowLeftIcon, DevicePhoneMobileIcon, ComputerDesktopIcon, HandRaisedIcon } from "@heroicons/react/24/outline";
+import { kioscoFetch, requireKioscoProfile } from "@/lib/kioscoAuth";
 
 export default function KioscoResguardos() {
   const navigate = useNavigate();
@@ -10,19 +11,12 @@ export default function KioscoResguardos() {
   const [loading, setLoading] = useState(false);
   const sigCanvas = useRef({});
 
-  // Simular resguardos pendientes
-  const resguardosPendientes = [
-    { id: 1, tipo: "laptop", nombre: "Laptop Dell Latitude 5420", sku: "LT-5420-001" },
-    { id: 2, tipo: "celular", nombre: "iPhone 13", sku: "IP-13-892" }
-  ];
+  const [serieId, setSerieId] = useState("");
 
   useEffect(() => {
-    const data = localStorage.getItem("kiosco_session");
-    if (!data) {
-      navigate("/kiosco/login");
-      return;
-    }
-    setSession(JSON.parse(data));
+    requireKioscoProfile(navigate).then((profile) => {
+      if (profile) setSession(profile);
+    });
   }, [navigate]);
 
   const handleClearSignature = () => {
@@ -30,6 +24,11 @@ export default function KioscoResguardos() {
   };
 
   const handleConfirmar = async () => {
+    if (!serieId) {
+      toast.error("Por favor, ingresa el ID de la serie o escanea el código.");
+      return;
+    }
+
     if (sigCanvas.current.isEmpty()) {
       toast.error("Por favor, ingresa tu firma en el recuadro.");
       return;
@@ -39,17 +38,28 @@ export default function KioscoResguardos() {
     setLoading(true);
 
     try {
-      // Simular envío de firma
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await kioscoFetch("/api/kiosco/resguardo", {
+        method: "POST",
+        body: JSON.stringify({
+          serie_id: Number(serieId),
+          firma_digital: signatureBase64
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || result.mensaje || "Error al procesar el resguardo");
+      }
+
       toast.success("¡Firma guardada! Resguardo completado exitosamente.");
       
-      // Limpiar y volver al menú
       setTimeout(() => {
         navigate("/kiosco/menu");
       }, 2000);
 
     } catch (error) {
-      toast.error("Error al guardar la firma.");
+      toast.error(error.message);
     } finally {
       setLoading(false);
     }
@@ -70,7 +80,7 @@ export default function KioscoResguardos() {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-sm font-semibold text-white">Gafete: {session.gafete}</p>
+          <p className="text-sm font-semibold text-white">Gafete: {session.empleado?.numero_gafete || "-"}</p>
         </div>
       </header>
 
@@ -81,20 +91,19 @@ export default function KioscoResguardos() {
           <div className="flex flex-col">
             <h2 className="text-3xl font-extrabold mb-6">Equipos por Firmar</h2>
             <div className="rounded-3xl bg-slate-800 p-8 ring-1 ring-white/10 shadow-2xl flex-1">
-              <p className="text-slate-400 mb-6">Revisa los siguientes equipos que te han sido asignados y confirma de recibido.</p>
+              <p className="text-slate-400 mb-6">Escanea el código de barras del equipo o ingresa el ID de la serie que vas a resguardar.</p>
               
               <div className="space-y-4">
-                {resguardosPendientes.map((item) => (
-                  <div key={item.id} className="flex items-center gap-4 bg-slate-700/50 p-4 rounded-2xl border border-slate-600">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400">
-                      {item.tipo === 'laptop' ? <ComputerDesktopIcon className="h-6 w-6" /> : <DevicePhoneMobileIcon className="h-6 w-6" />}
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-white">{item.nombre}</h3>
-                      <p className="font-mono text-sm text-slate-400">{item.sku}</p>
-                    </div>
+                  <div className="flex flex-col gap-2">
+                      <label className="text-sm font-semibold text-slate-300">ID de Serie del Equipo</label>
+                      <input 
+                          type="number" 
+                          value={serieId} 
+                          onChange={(e) => setSerieId(e.target.value)} 
+                          placeholder="Ej. 1" 
+                          className="bg-slate-900 border border-slate-600 rounded-xl px-4 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none w-full text-lg"
+                      />
                   </div>
-                ))}
               </div>
 
               <div className="mt-8 bg-blue-900/30 border border-blue-500/30 p-4 rounded-xl flex gap-4 text-sm text-blue-200">

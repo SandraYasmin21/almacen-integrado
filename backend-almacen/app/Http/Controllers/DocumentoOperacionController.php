@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use App\Models\ConfiguracionSistema;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -33,13 +34,16 @@ class DocumentoOperacionController extends Controller
             : now();
 
         $documento = $this->documentoConfig($tipo);
+        $firmaEntregaNombre = ConfiguracionSistema::value('pdf.firma_entrega_nombre', 'Ing. Dacia Edith Quintanilla Zuniga');
+        $firmaEntregaCargo = ConfiguracionSistema::value('pdf.firma_entrega_cargo', 'Encargada de Almacen');
+
         $data = [
             'tipo' => $tipo,
             'documento' => $documento,
             'fechaTexto' => $this->fechaTexto($fecha),
             'recibe' => $validated['recibe'] ?? 'Nombre y firma',
-            'entrega' => $validated['entrega'] ?? 'Ing. Dacia Edith Quintanilla Zuniga',
-            'cargoEntrega' => $validated['cargo_entrega'] ?? 'Encargada de Almacen',
+            'entrega' => $validated['entrega'] ?? $firmaEntregaNombre,
+            'cargoEntrega' => $validated['cargo_entrega'] ?? $firmaEntregaCargo,
             'destinatario' => $validated['destinatario'] ?? ($validated['recibe'] ?? 'Nombre de quien recibe'),
             'motivo' => $validated['motivo'] ?? null,
             'items' => collect($validated['items'])->map(function ($item, $index) use ($tipo) {

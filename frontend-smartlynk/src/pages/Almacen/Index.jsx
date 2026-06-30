@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import Barcode from "react-barcode";
+import { QRCodeCanvas } from "qrcode.react";
 import { Link, useNavigate } from "react-router-dom";
 import { DocumentPlusIcon, ArrowDownTrayIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 import { DataTableShell, ExportButtons, dataTableClass } from "../../components/ui/premium";
 import { SelectPremium } from "../../components/ui/SelectPremium";
+import FileUpload from "../../components/ui/FileUpload";
+import AdjuntosList from "../../components/ui/AdjuntosList";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 const authHeaders = () => ({
@@ -414,7 +417,7 @@ export default function AlmacenIndex() {
               Exportar Datos
             </button>
 
-            <Link to="/almacen/entrada"
+            <Link to="/activos/recepcion"
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl shadow-sm transition">
               + Nueva Entrada
             </Link>
@@ -914,22 +917,79 @@ export default function AlmacenIndex() {
                                   </>
                               )}
                           </div>
+                          
+                          {/* Adjuntos del Artículo / Serie */}
+                          <div className="mt-8 pt-6 border-t border-slate-100">
+                              <h5 className="text-sm font-semibold text-slate-800 mb-4">Documentos y Evidencias</h5>
+                              
+                              <FileUpload 
+                                  label="Subir nuevo documento"
+                                  onFileChange={async (file) => {
+                                      if (!file) return;
+                                      
+                                      const formData = new FormData();
+                                      formData.append('archivo', file);
+                                      formData.append('entidad_tipo', selectedArticle.row_type === 'serie' ? 'serie' : 'articulo');
+                                      formData.append('entidad_id', selectedArticle.row_type === 'serie' ? selectedArticle.serie_id : selectedArticle.articulo_id);
+                                      
+                                      const toastId = toast.loading('Subiendo archivo...');
+                                      try {
+                                          const res = await fetch(`${API}/api/adjuntos`, {
+                                              method: 'POST',
+                                              headers: {
+                                                  Accept: 'application/json',
+                                                  Authorization: `Bearer ${localStorage.getItem('smartlynk_token') ?? ''}`
+                                              },
+                                              body: formData
+                                          });
+                                          
+                                          if (res.ok) {
+                                              toast.success('Archivo subido con éxito', { id: toastId });
+                                              // Refrescar el componente forzando un re-render
+                                              setSelectedArticle({...selectedArticle});
+                                          } else {
+                                              const err = await res.json();
+                                              toast.error('Error al subir: ' + (err.mensaje || ''), { id: toastId });
+                                          }
+                                      } catch (e) {
+                                          toast.error('Error de red al subir archivo', { id: toastId });
+                                      }
+                                  }}
+                              />
+                              
+                              <div className="mt-4">
+                                  <AdjuntosList 
+                                      entidadTipo={selectedArticle.row_type === 'serie' ? 'serie' : 'articulo'}
+                                      entidadId={selectedArticle.row_type === 'serie' ? selectedArticle.serie_id : selectedArticle.articulo_id}
+                                  />
+                              </div>
+                          </div>
                       </div>
 
                       {/* Columna Derecha: Código de Barras (SKU) */}
                       <div className="w-full md:w-124 border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 flex flex-col items-center justify-center bg-slate-50/50 rounded-xl">
-                          <span className="text-sm font-semibold text-slate-600 mb-4">Código Interno (SKU)</span>
-                          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                          <span className="text-sm font-semibold text-slate-600 mb-4">Código Interno (SKU) y QR</span>
+                          <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center gap-4">
                               {selectedArticle.modelo ? (
-                                  <Barcode 
-                                      value={selectedArticle.modelo} 
-                                      width={1.5} 
-                                      height={50} 
-                                      displayValue={true} 
-                                      fontSize={14}
-                                      background="#ffffff"
-                                      lineColor="#1e293b"
-                                  />
+                                  <>
+                                      <Barcode 
+                                          value={selectedArticle.modelo} 
+                                          width={1.5} 
+                                          height={50} 
+                                          displayValue={true} 
+                                          fontSize={14}
+                                          background="#ffffff"
+                                          lineColor="#1e293b"
+                                      />
+                                      <div className="pt-4 border-t border-slate-100 flex flex-col items-center">
+                                          <QRCodeCanvas 
+                                              value={selectedArticle.modelo}
+                                              size={120}
+                                              level={"M"}
+                                          />
+                                          <p className="text-xs text-slate-400 mt-2">Escanea el QR</p>
+                                      </div>
+                                  </>
                               ) : (
                                   <p className="text-slate-400 italic text-sm text-center">Sin código<br/>interno</p>
                               )}

@@ -3,6 +3,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion, AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '../../lib/utils';
+import FileUpload from '../../components/ui/FileUpload';
+import AdjuntosList from '../../components/ui/AdjuntosList';
 import { toast } from 'sonner';
 import { 
     XMarkIcon,
@@ -31,9 +36,12 @@ const authHeaders = () => ({
 
 const vehiculoSchema = z.object({
     nombre_alias: z.string().min(1, "Obligatorio"),
+    marca: z.string().optional(),
     modelo: z.string().min(1, "Obligatorio"),
-    niv: z.string().min(1, "Obligatorio").regex(/^[A-Z0-9]+$/, "Formato alfanumérico"),
+    anio: z.preprocess((value) => value === "" ? undefined : Number(value), z.number().int().min(1900).max(2100).optional()),
+    niv: z.string().min(1, "Obligatorio").regex(/^[A-Z0-9]+$/, "Formato alfanumÃ©rico"),
     placa: z.string().min(1, "Obligatorio"),
+    kilometraje_actual: z.preprocess((value) => value === "" ? undefined : Number(value), z.number().min(0).optional()),
     numero_interno: z.string().optional(),
     tipo_vehiculo: z.string().optional(),
     poliza_seguro: z.string().optional(),
@@ -135,7 +143,7 @@ export default function CatalogoVehiculos() {
     }, [searchTerm]);
 
     const filterOptions = {
-        tipo: ['Pickup', 'Camioneta', 'Sedán', 'Motocicleta'],
+        tipo: ['Pickup', 'Camioneta', 'SedÃ¡n', 'Motocicleta'],
         gps: ['ACTIVO', 'INACTIVO', 'SIN UNIDAD'],
         estado: ['ACTIVO', 'INACTIVO', 'TALLER']
     };
@@ -157,11 +165,14 @@ export default function CatalogoVehiculos() {
         if (filters.estado.length) queryParams.append('estado', filters.estado.join(','));
         if (debouncedSearch) queryParams.append('search', debouncedSearch);
 
-        const url = `/api/exportar/${format}${queryParams.toString()}`;
+        // Append token if needed by the backend via query params for download endpoints
+        const token = localStorage.getItem('auth_token');
+        if (token) queryParams.append('token', token);
+
+        const url = `/api/catalogo/export/vehiculos/${format}?${queryParams.toString()}`;
         
-        toast.success(`Exportando ${format.toUpperCase()}...`, {
-            description: `Petición GET simulada a: ${url}`
-        });
+        toast.success(`Exportando ${format.toUpperCase()}...`);
+        window.open(url, '_blank');
     };
     
     const allVehiculos = vehiculos
@@ -169,9 +180,12 @@ export default function CatalogoVehiculos() {
             id: v.id,
             alias: v.nombre,
             no: v.numero || '-',
+            marca: v.marca || '-',
             modelo: v.modelo,
+            anio: v.anio || '-',
             placa: v.placa || v.placas || '-',
-            niv: v.numero_serie,
+            niv: v.niv || v.numero_serie,
+            kilometraje_actual: v.kilometraje_actual ?? 0,
             tipo: v.tipo_vehiculo || '-',
             gps: v.estado_gps || 'SIN UNIDAD',
             poliza_seguro: v.poliza_seguro || '',
@@ -180,7 +194,7 @@ export default function CatalogoVehiculos() {
         }))
         .filter((v) => {
             const query = debouncedSearch.toLowerCase();
-            const matchesSearch = !query || [v.alias, v.modelo, v.placa, v.niv, v.no]
+            const matchesSearch = !query || [v.alias, v.marca, v.modelo, v.placa, v.niv, v.no]
                 .some((value) => String(value || '').toLowerCase().includes(query));
             return matchesSearch
                 && (!filters.tipo.length || filters.tipo.includes(v.tipo))
@@ -234,7 +248,7 @@ export default function CatalogoVehiculos() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex flex-wrap gap-2">
                         <FilterPopover 
-                            title="Tipo vehículo" 
+                            title="Tipo vehÃ­culo" 
                             options={filterOptions.tipo} 
                             selected={filters.tipo} 
                             onChange={(val) => setFilters(prev => ({...prev, tipo: val}))} 
@@ -309,12 +323,14 @@ export default function CatalogoVehiculos() {
                         <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                             <tr>
                                 <th className="w-[13%] px-4 py-4 font-semibold">Nombre / Alias</th>
-                                <th className="w-[14%] px-4 py-4 font-semibold">Modelo</th>
+                                <th className="w-[10%] px-4 py-4 font-semibold">Marca</th>
+                                <th className="w-[12%] px-4 py-4 font-semibold">Modelo</th>
+                                <th className="w-[8%] px-4 py-4 font-semibold">Anio</th>
                                 <th className="w-[10%] px-4 py-4 font-semibold">Placa</th>
                                 <th className="w-[13%] px-4 py-4 font-semibold">NIV</th>
                                 <th className="w-[10%] px-4 py-4 font-semibold">Tipo</th>
                                 <th className="w-[12%] px-4 py-4 text-center font-semibold">GPS</th>
-                                <th className="w-[12%] px-4 py-4 font-semibold">Certificacion</th>
+                                <th className="w-[12%] px-4 py-4 font-semibold">Km actual</th>
                                 <th className="w-[10%] px-4 py-4 text-center font-semibold">Estado</th>
                                 <th className="w-[6%] px-4 py-4"></th>
                             </tr>
@@ -328,14 +344,16 @@ export default function CatalogoVehiculos() {
                                             <div className="text-xs text-slate-500">No. {v.no}</div>
                                         </div>
                                     </td>
+                                    <td className="truncate px-4 py-4">{v.marca}</td>
                                     <td className="truncate px-4 py-4">{v.modelo}</td>
+                                    <td className="truncate px-4 py-4">{v.anio}</td>
                                     <td className="truncate px-4 py-4 font-semibold">{v.placa}</td>
                                     <td className="truncate px-4 py-4 text-xs text-slate-500">{v.niv}</td>
                                     <td className="truncate px-4 py-4 text-slate-500">{v.tipo}</td>
                                     <td className="px-4 py-4 text-center">
                                         <StatusBadge status={v.gps === 'ACTIVO' ? 'Activo' : v.gps === 'INACTIVO' ? 'Inactivo' : 'Sin unidad'} size="compact" />
                                     </td>
-                                    <td className="truncate px-4 py-4 text-slate-500">{v.certificacion}</td>
+                                    <td className="truncate px-4 py-4 text-slate-500">{Number(v.kilometraje_actual || 0).toLocaleString()}</td>
                                     <td className="px-4 py-4 text-center">
                                         <StatusBadge status={v.estado === 'ACTIVO' ? 'Activo' : 'Inactivo'} size="compact" />
                                     </td>
@@ -360,7 +378,7 @@ export default function CatalogoVehiculos() {
             {/* Pagination placeholder */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
                 <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-500">Filas por página:</span>
+                    <span className="text-sm text-slate-500">Filas por pÃ¡gina:</span>
                     <div className="w-[80px]">
                         <SelectPremium 
                             value={String(rowsPerPage)} 
@@ -373,10 +391,10 @@ export default function CatalogoVehiculos() {
                             ]}
                         />
                     </div>
-                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando {totalVehiculos === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, totalVehiculos)} de {totalVehiculos} vehículos</span>
+                    <span className="text-sm text-slate-500 ml-2 hidden sm:inline">Mostrando {totalVehiculos === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}-{Math.min(currentPage * rowsPerPage, totalVehiculos)} de {totalVehiculos} vehÃ­culos</span>
                 </div>
                 <div className="flex items-center gap-4">
-                    <span className="text-sm text-slate-600 font-medium">Página {currentPage} de {totalPages}</span>
+                    <span className="text-sm text-slate-600 font-medium">PÃ¡gina {currentPage} de {totalPages}</span>
                     <div className="flex items-center gap-1">
                         <button 
                             onClick={() => setCurrentPage(1)}
@@ -410,7 +428,7 @@ export default function CatalogoVehiculos() {
                 </div>
             </div>
 
-            {/* Modal Nuevo Vehículo */}
+            {/* Modal Nuevo VehÃ­culo */}
             <NuevoVehiculoModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} editData={editData} onSaved={loadVehiculos} />
         </div>
     );
@@ -428,9 +446,12 @@ function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
         if (isOpen) {
             if (editData) {
                 setValue('nombre_alias', editData.alias || "");
+                setValue('marca', editData.marca === '-' ? "" : editData.marca || "");
                 setValue('modelo', editData.modelo || "");
+                setValue('anio', editData.anio === '-' ? "" : editData.anio || "");
                 setValue('niv', editData.niv || "");
                 setValue('placa', editData.placa || "");
+                setValue('kilometraje_actual', editData.kilometraje_actual || 0);
                 setValue('numero_interno', editData.no || "");
                 setValue('tipo_vehiculo', editData.tipo || "");
                 setValue('poliza_seguro', editData.poliza_seguro || "");
@@ -447,9 +468,13 @@ function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
     const onSubmit = async (data) => {
         const payload = {
             nombre: data.nombre_alias,
+            marca: data.marca || null,
             modelo: data.modelo,
+            anio: data.anio || null,
             numero_serie: data.niv.toUpperCase(),
+            niv: data.niv.toUpperCase(),
             placa: data.placa.toUpperCase(),
+            kilometraje_actual: data.kilometraje_actual || 0,
             numero: data.numero_interno || null,
             tipo_vehiculo: data.tipo_vehiculo || null,
             poliza_seguro: data.poliza_seguro || null,
@@ -489,7 +514,7 @@ function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
                     >
                         <div className="p-5 border-b border-slate-100 flex justify-between items-center shrink-0">
                             <h2 className="text-xl font-bold text-slate-800">
-                                {editData ? "Detalle del vehículo" : "Nuevo vehículo"}
+                                {editData ? "Detalle del vehÃ­culo" : "Nuevo vehÃ­culo"}
                             </h2>
                             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
                                 <XMarkIcon className="w-6 h-6" />
@@ -508,6 +533,14 @@ function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
                                         />
                                         {errors.nombre_alias && <p className="text-red-500 text-xs mt-1">{errors.nombre_alias.message}</p>}
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Marca</label>
+                                        <input 
+                                            {...register('marca')}
+                                            placeholder="Ej. Ford"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                    </div>
                                     
                                     <div>
                                         <label className="block text-sm font-semibold text-slate-700 mb-1">Modelo <span className="text-red-500">*</span></label>
@@ -522,7 +555,17 @@ function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">NIV / Número de serie <span className="text-red-500">*</span></label>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Anio</label>
+                                        <input 
+                                            type="number"
+                                            {...register('anio')}
+                                            placeholder="2026"
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                                        />
+                                        {errors.anio && <p className="text-red-500 text-xs mt-1">{errors.anio.message}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">NIV / NÃºmero de serie <span className="text-red-500">*</span></label>
                                         <input 
                                             {...register('niv')}
                                             placeholder="1FTER4FH5MLD12345"
@@ -543,70 +586,27 @@ function NuevoVehiculoModal({ isOpen, onClose, editData, onSaved }) {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Número interno</label>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Kilometraje actual</label>
                                         <input 
-                                            {...register('numero_interno')}
-                                            placeholder="Ej. 834"
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            {...register('kilometraje_actual')}
+                                            placeholder="0"
                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                         />
+                                        {errors.kilometraje_actual && <p className="text-red-500 text-xs mt-1">{errors.kilometraje_actual.message}</p>}
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo de vehículo</label>
-                                        <input 
-                                            {...register('tipo_vehiculo')}
-                                            placeholder="Camioneta, Pickup, Sedan..."
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Póliza de seguro</label>
-                                        <input 
-                                            {...register('poliza_seguro')}
-                                            placeholder="Num. póliza"
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Certificación</label>
-                                        <input 
-                                            {...register('certificacion')}
-                                            placeholder="VIG 29/09/09"
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-2">Estado GPS</label>
-                                    <div className="flex flex-wrap gap-2">
-                                        {['ACTIVO', 'INACTIVO', 'SIN UNIDAD'].map(estado => (
-                                            <button
-                                                key={estado}
-                                                type="button"
-                                                onClick={() => setValue('estado_gps', estado)}
-                                                className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                                                    estadoGps === estado ?
-                                                     (estado === 'ACTIVO' ? 'bg-emerald-500 text-white shadow-sm' : estado === 'INACTIVO' ? 'bg-rose-500 text-white shadow-sm' : 'bg-amber-500 text-white shadow-sm')
-                                                    : 'bg-white text-slate-500 hover:bg-slate-100 border border-slate-200'
-                                                }`}
-                                            >
-                                                {estado}
-                                            </button>
-                                        ))}
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">NÃºmero interno</label>
                                     </div>
                                 </div>
                             </form>
                         </div>
-                        
-                        <div className="p-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3 shrink-0">
-                            <button type="button" onClick={onClose} className="bg-white border border-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-semibold hover:bg-slate-50 transition-colors text-sm">
-                                Cancelar
-                            </button>
+                        <div className="p-5 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+                            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl font-semibold text-slate-600 hover:bg-slate-100 transition-colors text-sm">Cancelar</button>
                             <button form="vehiculoForm" type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-sm transition-colors text-sm">
-                                {editData ? "Guardar cambios" : "Registrar vehículo"}
+                                {editData ? "Guardar cambios" : "Registrar vehÃ­culo"}
                             </button>
                         </div>
                     </motion.div>

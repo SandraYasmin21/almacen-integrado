@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('usuarios_sistema')) {
+            return;
+        }
+
         Schema::create('usuarios_sistema', function (Blueprint $table) {
             $table->id();
             $table->string('nombre_usuario', 50)->unique();
@@ -238,7 +242,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('proyecto_presupuestos', function (Blueprint $table) {
+        Schema::create('proyectos_presupuestos', function (Blueprint $table) {
             $table->id();
             $table->string('nombre')->nullable();
             $table->timestamps();
@@ -247,7 +251,7 @@ return new class extends Migration
 
         Schema::create('orden_venta', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('proyecto_id')->nullable()->constrained('proyecto_presupuestos')->nullOnDelete();
+            $table->foreignId('proyecto_id')->nullable()->constrained('proyectos_presupuestos')->nullOnDelete();
             $table->timestamp('fecha_hora')->nullable();
             $table->string('folio')->nullable();
             $table->timestamps();
@@ -267,7 +271,7 @@ return new class extends Migration
     {
         Schema::dropIfExists('detalle_orden_venta');
         Schema::dropIfExists('orden_venta');
-        Schema::dropIfExists('proyecto_presupuestos');
+        Schema::dropIfExists('proyectos_presupuestos');
         Schema::dropIfExists('detalle_orden_compra');
         Schema::dropIfExists('ordenes_compra');
         Schema::dropIfExists('bitacora_vehiculos');

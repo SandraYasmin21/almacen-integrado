@@ -2,24 +2,37 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\AdjuntoController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use App\Http\Controllers\AlmacenController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BackupController;
 use App\Http\Controllers\BitacoraViajeController;
+use App\Http\Controllers\BusquedaAvanzadaController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\CatalogoCentralController;
+use App\Http\Controllers\CatalogoConfigurableController;
+use App\Http\Controllers\ConfiguracionSistemaController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentoOperacionController;
 use App\Http\Controllers\EmpleadoController;
 use App\Http\Controllers\FlotillaDashboardController;
 use App\Http\Controllers\FlotillaKilometrajeController;
 use App\Http\Controllers\GastoExtraVehiculoController;
+use App\Http\Controllers\PeriodoOperativoController;
+use App\Http\Controllers\ProyectoController;
 use App\Http\Controllers\RegistroVehicularController;
+use App\Http\Controllers\ReporteVehicularController;
+use App\Http\Controllers\ReporteBasicoController;
+use App\Http\Controllers\UbicacionController;
+use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VehiculoFlotillaController;
 use App\Http\Controllers\OrdenCompraController;
-
+use App\Http\Controllers\FlotillaExportController;
+use App\Http\Controllers\KioscoAuthController;
+use App\Http\Controllers\KioscoOperacionesController;
 // ============================================================
 // Rate Limiters (desde variables de entorno)
 // ============================================================
@@ -88,6 +101,8 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     Route::get('export/pdf', [DashboardController::class, 'exportPDF']);
 
     Route::get('/almacen/dashboard', [AlmacenController::class, 'dashboardStats']);
+    Route::get('/almacen/entrada/plantilla', [AlmacenController::class, 'descargarPlantillaImportacion']);
+    Route::post('/almacen/entrada/importar', [AlmacenController::class, 'importarArchivo']);
     Route::post('/almacen/entrada/importar-csv', [AlmacenController::class, 'importarCSV']);
     Route::get('/almacen/exportar-inventario', [AlmacenController::class, 'exportarInventarioDetallado']);
     Route::get('almacen/inventario-detallado', [AlmacenController::class, 'inventarioDetalladoApi']);
@@ -102,6 +117,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
         ->orderBy('ubicacion')
         ->get());
     Route::post('almacen/entrada', [AlmacenController::class, 'registrarEntrada']);
+    Route::post('almacen/ajuste-fisico', [AlmacenController::class, 'registrarAjusteFisico']);
     Route::get('almacen/sku/{codigo}', [AlmacenController::class, 'buscarSku']);
     Route::get('almacen/articulos/{id}/series-disponibles', [AlmacenController::class, 'seriesDisponiblesPorArticulo']);
     Route::post('almacen/salida', [AlmacenController::class, 'registrarSalida']);
@@ -141,6 +157,52 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
     });
 });
 
+Route::middleware(['auth:sanctum', 'throttle:api-general', 'check.role:Admin'])->prefix('admin')->group(function () {
+    Route::apiResource('usuarios', UsuarioController::class)->only(['index', 'store', 'update']);
+    Route::patch('usuarios/{usuario}/activar', [UsuarioController::class, 'activar']);
+    Route::post('usuarios/{usuario}/reset-password', [UsuarioController::class, 'resetPassword']);
+
+    Route::get('configuraciones', [ConfiguracionSistemaController::class, 'index']);
+    Route::put('configuraciones', [ConfiguracionSistemaController::class, 'update']);
+
+    Route::post('backups', [BackupController::class, 'store']);
+    Route::get('backups/{file}', [BackupController::class, 'download']);
+    Route::post('backups/{file}/upload', [BackupController::class, 'upload']);
+
+    Route::get('auditoria', fn (Request $request) => DB::table('auditoria_sistema')
+        ->orderByDesc('created_at')
+        ->paginate($request->integer('per_page', 50)));
+});
+
+Route::middleware(['auth:sanctum', 'throttle:api-general', 'check.role:Admin,Almacen,Proyecto,Direccion'])->group(function () {
+    Route::apiResource('ubicaciones', UbicacionController::class)
+        ->parameters(['ubicaciones' => 'ubicacion'])
+        ->except(['show']);
+    Route::apiResource('catalogos-configurables', CatalogoConfigurableController::class)
+        ->parameters(['catalogos-configurables' => 'catalogo'])
+        ->except(['show']);
+    Route::apiResource('proyectos', ProyectoController::class)->only(['index', 'store', 'show', 'update']);
+    Route::post('proyectos/{proyecto}/recursos', [ProyectoController::class, 'asignarRecurso']);
+    Route::delete('proyectos/{proyecto}/recursos/{recurso}', [ProyectoController::class, 'retirarRecurso']);
+
+    Route::get('busqueda-avanzada', BusquedaAvanzadaController::class);
+    Route::get('periodos-operativos', [PeriodoOperativoController::class, 'index']);
+    Route::post('periodos-operativos', [PeriodoOperativoController::class, 'store']);
+    Route::post('periodos-operativos/{periodo}/cerrar', [PeriodoOperativoController::class, 'cerrar'])->middleware('check.role:Admin');
+
+    Route::get('reportes/vehiculos', [ReporteVehicularController::class, 'index']);
+    Route::get('reportes/vehiculos/{vehiculoId}/historial', [ReporteVehicularController::class, 'historial']);
+    Route::get('reportes/basicos', [ReporteBasicoController::class, 'index']);
+    Route::get('reportes/basicos/{tipo}', [ReporteBasicoController::class, 'show']);
+    Route::get('reportes/basicos/{tipo}/export', [ReporteBasicoController::class, 'export']);
+
+    // Adjuntos
+    Route::get('adjuntos/entidad/{tipo}/{id}', [AdjuntoController::class, 'porEntidad']);
+    Route::post('adjuntos', [AdjuntoController::class, 'store']);
+    Route::get('adjuntos/{id}', [AdjuntoController::class, 'show']);
+    Route::delete('adjuntos/{id}', [AdjuntoController::class, 'destroy']);
+});
+
 // ============================================================
 // Modulo de Flotilla Vehicular
 // CORS: aplica globalmente desde config/cors.php
@@ -168,6 +230,17 @@ Route::prefix('flotilla')->middleware(['auth:sanctum', 'throttle:flotilla'])->gr
 
     // Tabla de Kilometraje
     Route::get('kilometraje', [FlotillaKilometrajeController::class, 'index']);
+});
+
+// ============================================================
+// Rutas de exportacion de Flotilla 
+// (Usadas por los botones de exportar PDF/Excel)
+// ============================================================
+Route::prefix('exportar')->middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
+    Route::get('mantenimientos/{formato}', [FlotillaExportController::class, 'mantenimientos']);
+    Route::get('gastosextra/{formato}', [FlotillaExportController::class, 'gastosextra']);
+    Route::get('kilometraje/{formato}', [FlotillaExportController::class, 'kilometraje']);
+    Route::get('bitacora/{formato}', [FlotillaExportController::class, 'bitacora']);
 });
 
 // ============================================================
@@ -212,5 +285,112 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
         Route::get('/', [FlotillaController::class, 'index']);
         Route::get('/vehiculo/{id}', [FlotillaController::class, 'show']);
         Route::get('/bitacora', [FlotillaController::class, 'bitacora']);
+    });
+});
+
+// ============================================================
+// Kiosco — Autenticación pública (gafete + PIN)
+// ============================================================
+Route::prefix('kiosco')->group(function () {
+
+    // Login público (rate limiting estricto: 5 intentos/minuto por IP)
+    Route::post('login', [KioscoAuthController::class, 'login'])
+        ->middleware('throttle:auth-login');
+
+    Route::post('logout', [KioscoAuthController::class, 'logout']);
+
+    // Operaciones protegidas por token kiosco
+    Route::middleware(['kiosco.auth', 'throttle:api-general'])->group(function () {
+        Route::get('perfil',               [KioscoAuthController::class, 'perfil']);
+        Route::get('mis-prestamos',        [KioscoOperacionesController::class, 'misPrestamos']);
+        Route::get('mi-vehiculo',          [KioscoOperacionesController::class, 'miVehiculo']);
+        Route::get('sku/{codigo}',         [KioscoOperacionesController::class, 'buscarSku']);
+        Route::post('salida-prestamo',     [KioscoOperacionesController::class, 'registrarSalidaPrestamo']);
+        Route::post('devolucion',          [KioscoOperacionesController::class, 'registrarDevolucionPrestamo']);
+        Route::post('resguardo',           [KioscoOperacionesController::class, 'registrarResguardoFirma']);
+        Route::post('salida-vehiculo',     [KioscoOperacionesController::class, 'salidaVehiculo']);
+        Route::post('regreso-vehiculo',    [KioscoOperacionesController::class, 'regresoVehiculo']);
+    });
+});
+
+// ============================================================
+// Adjuntos — Archivos reales (activos / facturas / garantías)
+// Requiere autenticación Sanctum
+// ============================================================
+Route::middleware(['auth:sanctum', 'throttle:api-general'])->prefix('adjuntos')->group(function () {
+    Route::post('/', [AdjuntoController::class, 'store']);
+    Route::get('/{id}', [AdjuntoController::class, 'show']);
+    Route::delete('/{id}', [AdjuntoController::class, 'destroy']);
+    Route::get('/entidad/{tipo}/{id}', [AdjuntoController::class, 'porEntidad']);
+});
+
+// ============================================================
+// Kiosco — Gestión de perfiles (Solo Admin con Sanctum)
+// ============================================================
+Route::middleware(['auth:sanctum', 'throttle:api-general', 'check.role:Admin,Almacen'])->group(function () {
+    Route::get('kiosco-perfiles', function () {
+        return response()->json(
+            \DB::table('perfiles_kiosco as pk')
+                ->join('empleados as e', 'pk.empleado_id', '=', 'e.id')
+                ->leftJoin('usuarios_sistema as u', 'pk.creado_por_id', '=', 'u.id')
+                ->select(
+                    'pk.id', 'pk.estado', 'pk.permisos', 'pk.kioscos_autorizados',
+                    'pk.ultimo_acceso', 'pk.intentos_fallidos',
+                    'e.nombre_completo as empleado', 'e.numero_gafete',
+                    'u.nombre_usuario as creado_por',
+                    'pk.created_at', 'pk.updated_at'
+                )
+                ->whereNull('pk.deleted_at')
+                ->orderBy('e.nombre_completo')
+                ->get()
+        );
+    });
+
+    Route::post('kiosco-perfiles', function (\Illuminate\Http\Request $request) {
+        $validated = $request->validate([
+            'empleado_id'          => 'required|integer|exists:empleados,id',
+            'pin'                  => 'required|string|min:4|max:10',
+            'estado'               => 'nullable|in:activo,suspendido',
+            'kioscos_autorizados'  => 'nullable|array',
+            'permisos'             => 'nullable|array',
+        ]);
+
+        // Verificar que no exista ya un perfil activo
+        if (\DB::table('perfiles_kiosco')->where('empleado_id', $validated['empleado_id'])->whereNull('deleted_at')->exists()) {
+            return response()->json(['mensaje' => 'Este empleado ya tiene un perfil de kiosco.'], 422);
+        }
+
+        $id = \DB::table('perfiles_kiosco')->insertGetId([
+            'empleado_id'         => $validated['empleado_id'],
+            'pin_hash'            => \Illuminate\Support\Facades\Hash::make($validated['pin']),
+            'estado'              => $validated['estado'] ?? 'activo',
+            'kioscos_autorizados' => json_encode($validated['kioscos_autorizados'] ?? []),
+            'permisos'            => json_encode($validated['permisos'] ?? ['prestamo', 'devolucion', 'flotilla']),
+            'creado_por_id'       => $request->user()?->id,
+            'created_at'          => now(),
+            'updated_at'          => now(),
+        ]);
+
+        return response()->json(['mensaje' => 'Perfil de kiosco creado.', 'id' => $id], 201);
+    });
+
+    Route::put('kiosco-perfiles/{id}/estado', function (\Illuminate\Http\Request $request, int $id) {
+        $request->validate(['estado' => 'required|in:activo,suspendido,bloqueado']);
+        \DB::table('perfiles_kiosco')->where('id', $id)->update([
+            'estado'     => $request->estado,
+            'updated_at' => now(),
+        ]);
+        return response()->json(['mensaje' => 'Estado actualizado.']);
+    });
+
+    Route::put('kiosco-perfiles/{id}/reset-pin', function (\Illuminate\Http\Request $request, int $id) {
+        $request->validate(['pin' => 'required|string|min:4|max:10']);
+        \DB::table('perfiles_kiosco')->where('id', $id)->update([
+            'pin_hash'          => \Illuminate\Support\Facades\Hash::make($request->pin),
+            'intentos_fallidos' => 0,
+            'bloqueado_hasta'   => null,
+            'updated_at'        => now(),
+        ]);
+        return response()->json(['mensaje' => 'PIN restablecido.']);
     });
 });

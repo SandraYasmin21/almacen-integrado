@@ -24,6 +24,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/pop
 import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { SelectPremium } from '../../components/ui/SelectPremium';
+import FileUpload from '../../components/ui/FileUpload';
+import AdjuntosList from '../../components/ui/AdjuntosList';
 
 const API = import.meta.env.VITE_API_URL ?? '';
 const authHeaders = () => ({
@@ -43,6 +45,7 @@ const gastoSchema = z.object({
 export default function GastosExtra() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editData, setEditData] = useState(null);
+    const [evidenciaFile, setEvidenciaFile] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [gastos, setGastos] = useState([]);
     const [vehiculos, setVehiculos] = useState([]);
@@ -76,11 +79,13 @@ export default function GastosExtra() {
 
     const handleNuevoGasto = () => {
         setEditData(null);
+        setEvidenciaFile(null);
         setIsModalOpen(true);
     };
 
     const handleEditGasto = (gasto) => {
         setEditData(gasto);
+        setEvidenciaFile(null);
         setIsModalOpen(true);
     };
 
@@ -126,6 +131,15 @@ export default function GastosExtra() {
 
     const onSubmit = async (data) => {
         try {
+            const tiposConEvidenciaObligatoria = ['multa', 'accidente', 'daño', 'dano', 'siniestro', 'combustible_especial', 'reparacion_externa'];
+            const tipoLower = data.tipo_gasto.toLowerCase().trim();
+            const requiereEvidencia = tiposConEvidenciaObligatoria.includes(tipoLower);
+
+            if (requiereEvidencia && !evidenciaFile && !editData) {
+                toast.error(`El tipo '${data.tipo_gasto}' requiere evidencia obligatoria.`);
+                return;
+            }
+
             const response = await fetch(`${API}/api/flotilla/gastos-extra${editData ? `/${editData.id}` : ''}`, {
                 method: editData ? 'PUT' : 'POST',
                 headers: authHeaders(),
@@ -133,13 +147,41 @@ export default function GastosExtra() {
                     vehiculo_id: Number(data.vehiculo_id), fecha: data.fecha,
                     tipo: data.tipo_gasto, costo: Number(data.costo),
                     observaciones: data.observaciones || null,
+                    evidencia_path: evidenciaFile ? 'archivo_adjunto' : (editData ? editData.evidencia_path : null)
                 }),
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || result.mensaje || 'No se pudo guardar el gasto');
+            
+            const gastoId = result.gasto?.id || editData?.id;
+
+            // Subir archivo adjunto si hay uno seleccionado
+            if (evidenciaFile && gastoId) {
+                const formData = new FormData();
+                formData.append('archivo', evidenciaFile);
+                formData.append('entidad_tipo', 'gasto_extra');
+                formData.append('entidad_id', gastoId);
+                formData.append('categoria', 'evidencia');
+
+                const uploadRes = await fetch(`${API}/api/adjuntos`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        Authorization: `Bearer ${localStorage.getItem('smartlynk_token') ?? ''}`,
+                    },
+                    body: formData,
+                });
+                
+                if (!uploadRes.ok) {
+                    const upResult = await uploadRes.json();
+                    toast.warning('El gasto se guardó, pero hubo un error al subir la evidencia: ' + (upResult.mensaje || ''));
+                }
+            }
+
             toast.success(editData ? 'Gasto actualizado exitosamente' : 'Gasto extra registrado exitosamente');
             setIsModalOpen(false);
             reset();
+            setEvidenciaFile(null);
             await loadData();
         } catch (error) {
             toast.error(error.message);
@@ -436,6 +478,23 @@ export default function GastosExtra() {
                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none transition-all placeholder:text-slate-400"
                                         ></textarea>
                                     </div>
+
+                                    <div className="pt-2">
+                                        <FileUpload 
+                                            onFileChange={setEvidenciaFile} 
+                                            label="Subir nueva evidencia (Requerido para multas y accidentes)" 
+                                        />
+                                    </div>
+                                    
+                                    {editData && (
+                                        <div className="pt-4 border-t border-slate-100">
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">Evidencias actuales</label>
+                                            <AdjuntosList 
+                                                entidadTipo="gasto_extra" 
+                                                entidadId={editData.id} 
+                                            />
+                                        </div>
+                                    )}
 
                                 </form>
                             </div>

@@ -34,7 +34,9 @@ class Usuario extends Authenticatable
         'email',
         'password_hash',
         'password_cambiado',
+        'generado_por_id',
         'rol_acceso',
+        'permisos_custom',
         'activo',
     ];
 
@@ -49,10 +51,29 @@ class Usuario extends Authenticatable
         'deleted_at'        => 'datetime',
     ];
 
-    // Constantes de roles (coherentes con el paquete)
-    const ROL_ADMIN    = 'Admin';
-    const ROL_ALMACEN  = 'Almacen';
-    const ROL_VENDEDOR = 'Vendedor';
+    public const ROL_ADMIN = 'Admin';
+    public const ROL_ALMACEN = 'Almacen';
+    public const ROL_PROYECTO = 'Proyecto';
+    public const ROL_SOLICITANTE = 'Solicitante';
+    public const ROL_DIRECCION = 'Direccion';
+
+    public const ROLES = [
+        self::ROL_ADMIN,
+        self::ROL_ALMACEN,
+        self::ROL_PROYECTO,
+        self::ROL_SOLICITANTE,
+        self::ROL_DIRECCION,
+    ];
+
+    public function hasRole(string ...$roles): bool
+    {
+        return in_array($this->rol_acceso, $roles, true);
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->hasRole(self::ROL_ADMIN);
+    }
 
     /**
      * Sobrescribe el nombre del campo de password para que

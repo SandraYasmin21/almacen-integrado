@@ -33,20 +33,19 @@ class AuthController extends Controller
     {
         // 1. Validación estricta de inputs — rechaza tipos inesperados
         $validated = $request->validate([
-            'email'    => 'required|string|email|max:150',
+            'username' => 'required|string|max:50',
             'password' => 'required|string|min:6|max:100',
         ]);
 
         // 2. Sanitización — elimina etiquetas HTML y espacios extra
-        $email = strtolower(strip_tags(trim($validated['email'])));
+        $username = strip_tags(trim($validated['username']));
         // Nota: la contraseña NO se sanitiza con strip_tags porque
         // caracteres especiales (<, >, &) son válidos en contraseñas.
         // El Hash::check protege contra cualquier valor malicioso.
 
         // 3. Buscar usuario activo — consulta mínima (solo campos necesarios)
-        $usuario = Usuario::where('email', $email)
-            // ->where('activo', true)
-            ->select(['id', 'nombre_usuario', 'email', 'password_hash', 'rol_acceso', 'password_cambiado'])
+        $usuario = Usuario::where('nombre_usuario', $username)
+            ->select(['id', 'nombre_usuario', 'email', 'password_hash', 'rol_acceso', 'password_cambiado', 'activo'])
             ->first();
 
         // 4. Verificar credenciales con tiempo constante (evita timing attacks)
@@ -54,11 +53,14 @@ class AuthController extends Controller
         $hashFallback = '$2y$12$CvdJwv6O7D0Y6/JcHjYZc.G8wo8AqN7QUdYxdgS4d61j6vEo6wRE6';
         $hashAVerificar = $usuario?->password_hash ?? $hashFallback;
 
-        if (! $usuario || ! Hash::check($validated['password'], $hashAVerificar)) {
+        if (! $usuario || ! $usuario->activo || ! Hash::check($validated['password'], $hashAVerificar)) {
             // Mensaje genérico: nunca revelar si el email existe o no
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales proporcionadas son incorrectas.'],
-            ]);
+            return response()->json([
+                'message' => 'Las credenciales proporcionadas son incorrectas.',
+                'errors' => [
+                    'username' => ['Las credenciales proporcionadas son incorrectas.'],
+                ],
+            ], 401);
         }
 
         // 5. LA REGLA DE ORO: Verificar si debe cambiar su clave
@@ -82,6 +84,7 @@ class AuthController extends Controller
         return response()->json([
             'mensaje' => 'Sesión iniciada correctamente',
             'token'   => $token,
+            'access_token' => $token,
             'usuario' => [
                 'id'             => $usuario->id,
                 'nombre_usuario' => $usuario->nombre_usuario,

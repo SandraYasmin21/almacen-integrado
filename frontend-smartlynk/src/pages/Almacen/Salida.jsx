@@ -161,7 +161,7 @@ export default function Salida() {
 
             if (res.success) {
                 toast.success("Salida de inventario procesada con éxito.");
-                navigate('/almacen'); // O la ruta a donde quieras redirigir tras el éxito
+                navigate('/activos/inventario');
             } else {
                 toast.error(res.message || "Error al procesar la salida.");
             }
