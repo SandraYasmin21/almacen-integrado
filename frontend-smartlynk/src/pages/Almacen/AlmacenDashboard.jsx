@@ -58,7 +58,7 @@ export default function AlmacenDashboard() {
           <p className="text-sm text-slate-500 mt-1">Resumen general del inventario y alertas en tiempo real.</p>
         </div>
         <div className="flex gap-3">
-          <Link to="/almacen/entrada" className="px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-xl text-sm hover:bg-emerald-200 transition">
+          <Link to="/activos/recepcion" className="px-4 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-xl text-sm hover:bg-emerald-200 transition">
             + Registrar Entrada
           </Link>
           <button onClick={loadDashboard} className="px-4 py-2 border border-slate-200 text-slate-600 font-bold rounded-xl text-sm hover:bg-slate-50 transition">

@@ -21,11 +21,14 @@ import {
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '../../lib/utils';
+import FileUpload from '../../components/ui/FileUpload';
+import AdjuntosList from '../../components/ui/AdjuntosList';
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover';
 import { DateRangePicker } from '../../components/ui/date-range-picker';
 import { DatePicker } from '../../components/ui/date-picker';
 import { SelectPremium } from '../../components/ui/SelectPremium';
 import StatusBadge from '../../components/StatusBadge';
+
 
 const API = import.meta.env.VITE_API_URL ?? '';
 const authHeaders = () => ({
@@ -166,11 +169,10 @@ export default function RegistroMantenimientos() {
         if (date.from) queryParams.append('fecha_inicio', date.from.toISOString().split('T')[0]);
         if (date.to) queryParams.append('fecha_fin', date.to.toISOString().split('T')[0]);
 
-        const url = `/api/exportar/mantenimientos/${format}${queryParams.toString()}`;
+        const url = `/api/exportar/mantenimientos/${format}?${queryParams.toString()}`;
         
-        toast.success(`Exportando ${format.toUpperCase()}...`, {
-            description: `Peticion GET simulada a: ${url}`
-        });
+        window.location.href = url;
+        toast.success(`Exportando ${format.toUpperCase()}...`);
     };
     
     const allRegistros = registros
@@ -383,6 +385,7 @@ export default function RegistroMantenimientos() {
 }
 
 function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
+    const [evidenciaFile, setEvidenciaFile] = useState(null);
     const { register, handleSubmit, setValue, watch, reset, formState: { errors }, control } = useForm({
         resolver: zodResolver(mantenimientoSchema),
         defaultValues: {
@@ -392,6 +395,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
 
     useEffect(() => {
         if (isOpen) {
+            setEvidenciaFile(null);
             if (editData) {
                 setValue('vehiculo_id', String(editData.vehiculo_id));
                 setValue('fecha', editData.fecha);
@@ -410,17 +414,49 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
 
     const onSubmit = async (data) => {
         try {
+            if (data.tipo === 'correctivo' && !evidenciaFile && !editData) {
+                toast.error(`El tipo 'correctivo' requiere evidencia obligatoria.`);
+                return;
+            }
+
             const response = await fetch(`${API}/api/flotilla/registros${editData ? `/${editData.id}` : ''}`, {
                 method: editData ? 'PUT' : 'POST', headers: authHeaders(),
                 body: JSON.stringify({
                     vehiculo_id: Number(data.vehiculo_id), fecha: data.fecha, tipo: data.tipo,
                     detalle_falla: data.detalle_falla || null, kilometraje: Number(data.kilometraje),
                     costo: Number(data.costo || 0), tipo_mantenimiento: data.subtipo || null,
+                    evidencia_path: evidenciaFile ? 'archivo_adjunto' : (editData ? editData.evidencia_path : null)
                 }),
             });
             const result = await response.json();
             if (!response.ok) throw new Error(result.message || result.mensaje || 'No se pudo guardar el mantenimiento');
+            
+            const registroId = result.registro?.id || editData?.id;
+
+            if (evidenciaFile && registroId) {
+                const formData = new FormData();
+                formData.append('archivo', evidenciaFile);
+                formData.append('entidad_tipo', 'registro_vehicular');
+                formData.append('entidad_id', registroId);
+                formData.append('categoria', 'evidencia');
+
+                const uploadRes = await fetch(`${API}/api/adjuntos`, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        Authorization: `Bearer ${localStorage.getItem('smartlynk_token') ?? ''}`,
+                    },
+                    body: formData,
+                });
+                
+                if (!uploadRes.ok) {
+                    const upResult = await uploadRes.json();
+                    toast.warning('El registro se guardó, pero hubo un error al subir la evidencia: ' + (upResult.mensaje || ''));
+                }
+            }
+
             toast.success(editData ? 'Mantenimiento actualizado correctamente' : 'Mantenimiento registrado correctamente');
+            setEvidenciaFile(null);
             await onSaved();
             onClose();
         } catch (error) {
@@ -553,6 +589,22 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                                         placeholder="Cambio de aceite, Frenos, Llantas..."
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                     />
+                                </div>
+                                
+                                <div className="pt-2 border-t border-slate-100 mt-4">
+                                    <h5 className="text-sm font-semibold text-slate-800 mb-2">Evidencias y Adjuntos</h5>
+                                    <FileUpload 
+                                        onFileChange={setEvidenciaFile} 
+                                        label="Subir nueva evidencia (Requerido para correctivos en nuevo registro)" 
+                                    />
+                                    {editData && (
+                                        <div className="mt-4">
+                                            <AdjuntosList 
+                                                entidadTipo="registro_vehicular"
+                                                entidadId={editData.id}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             

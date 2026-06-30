@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Maatwebsite\Excel\Facades\Excel;
 use Carbon\Carbon;
 use App\Exports\DashboardExport;
+use App\Models\InventarioSerie;
  
 class DashboardController extends Controller
 {
@@ -45,13 +47,20 @@ class DashboardController extends Controller
             ? 'motivo_viaje'
             : 'motivo_uso';
  
-        $totalActivos = DB::table('stock_general')->sum('cantidad');
+        $totalConsumibles = (float) DB::table('stock_general')->whereNull('deleted_at')->sum('cantidad');
+        $seriesPorEstado = DB::table('inventario_series')
+            ->whereNull('deleted_at')
+            ->select('estado', DB::raw('COUNT(*) as total'))
+            ->groupBy('estado')
+            ->pluck('total', 'estado');
+        $totalSeries = (int) $seriesPorEstado->sum();
+        $totalActivos = $totalConsumibles + $totalSeries;
  
         $vehiculosRuta = DB::table('bitacora_vehiculos')
             ->whereNull($vehiculoRegresoColumn)->count();
  
         $vehiculosTotal = DB::table('vehiculos_flotilla')
-            ->where('estado', 'ACTIVO')->count();
+            ->whereIn('estado', ['ACTIVO', 'DISPONIBLE', 'ASIGNADO'])->count();
  
         $prestamosVencidos = DB::table('asignaciones_activos')
             ->whereNull('fecha_devolucion')
@@ -126,12 +135,17 @@ class DashboardController extends Controller
                 'tipo'       => $m->tipo,
                 'fecha_hora' => Carbon::parse($m->fecha_hora)->format('d/m H:i'),
                 'usuario'    => $m->usuario,
-                'articulo'   => $m->articulo ?? 'â€”',
-                'cantidad'   => $m->cantidad ?? 'â€”',
+                'articulo'   => $m->articulo ?? '-',
+                'cantidad'   => $m->cantidad ?? '-',
             ]);
  
         return [
             'total_activos'         => (int)$totalActivos,
+            'activos_disponibles'   => (int) ($seriesPorEstado[InventarioSerie::ESTADO_DISPONIBLE] ?? 0),
+            'activos_asignados'     => (int) ($seriesPorEstado[InventarioSerie::ESTADO_ASIGNADO] ?? 0),
+            'activos_reparacion'    => (int) ($seriesPorEstado[InventarioSerie::ESTADO_REPARACION] ?? 0),
+            'activos_baja'          => (int) ($seriesPorEstado[InventarioSerie::ESTADO_BAJA] ?? 0),
+            'materiales_disponibles'=> (float) $totalConsumibles,
             'vehiculos_ruta'        => $vehiculosRuta,
             'vehiculos_total'       => $vehiculosTotal,
             'prestamos_vencidos'    => $prestamosVencidos,
@@ -145,6 +159,8 @@ class DashboardController extends Controller
  
     public function notifications()
     {
+        return response()->json($this->cachedNotifications());
+        /*
         $notifs = [];
  
         $criticos = DB::table('stock_general as sg')
@@ -158,8 +174,8 @@ class DashboardController extends Controller
             $notifs[] = [
                 'tipo'    => 'stock',
                 'urgente' => true,
-                'titulo'  => "Stock crÃ­tico: {$c->nombre}",
-                'mensaje' => "Solo quedan {$c->cantidad} unidades (mÃ­nimo: {$c->stock_minimo})",
+                'titulo'  => "Stock critico: {$c->nombre}",
+                'mensaje' => "Solo quedan {$c->cantidad} unidades (minimo: {$c->stock_minimo})",
             ];
         }
  
@@ -177,12 +193,240 @@ class DashboardController extends Controller
             $notifs[] = [
                 'tipo'    => 'prestamo',
                 'urgente' => $dias > 60,
-                'titulo'  => "PrÃ©stamo vencido: {$v->articulo}",
-                'mensaje' => "Asignado a {$v->nombre_completo} hace {$dias} dÃ­as",
+                'titulo'  => "Prestamo vencido: {$v->articulo}",
+                'mensaje' => "Asignado a {$v->nombre_completo} hace {$dias} dias",
             ];
         }
  
         return response()->json($notifs);
+        */
+    }
+
+    private function cachedNotifications(): array
+    {
+        return Cache::remember('dashboard_notifications:v2', now()->addHour(), function () {
+            $notifs = [];
+
+            $criticos = DB::table('stock_general as sg')
+                ->join('catalogo_articulos as ca', 'sg.articulo_id', '=', 'ca.id')
+                ->whereRaw('sg.cantidad <= ca.stock_minimo * 0.2')
+                ->whereNull('ca.deleted_at')
+                ->select('ca.nombre', 'sg.cantidad', 'ca.stock_minimo')
+                ->limit(5)
+                ->get();
+
+            foreach ($criticos as $c) {
+                $notifs[] = [
+                    'tipo' => 'stock',
+                    'urgente' => true,
+                    'titulo' => "Stock critico: {$c->nombre}",
+                    'mensaje' => "Solo quedan {$c->cantidad} unidades (minimo: {$c->stock_minimo})",
+                ];
+            }
+
+            $vencidos = DB::table('asignaciones_activos as aa')
+                ->join('empleados as e', 'aa.empleado_id', '=', 'e.id')
+                ->join('inventario_series as is', 'aa.serie_id', '=', 'is.id')
+                ->join('catalogo_articulos as ca', 'is.articulo_id', '=', 'ca.id')
+                ->whereNull('aa.fecha_devolucion')
+                ->where('aa.fecha_entrega', '<', Carbon::now()->subDays(30))
+                ->select('e.nombre_completo', 'ca.nombre as articulo', 'aa.fecha_entrega')
+                ->limit(3)
+                ->get();
+
+            foreach ($vencidos as $v) {
+                $dias = Carbon::parse($v->fecha_entrega)->diffInDays();
+                $notifs[] = [
+                    'tipo' => 'prestamo',
+                    'urgente' => $dias > 60,
+                    'titulo' => "Prestamo vencido: {$v->articulo}",
+                    'mensaje' => "Asignado a {$v->nombre_completo} hace {$dias} dias",
+                ];
+            }
+
+            $this->appendRepairAlerts($notifs);
+            $this->appendWarrantyAlerts($notifs);
+            $this->appendVehicleMaintenanceAlerts($notifs);
+
+            return $notifs;
+        });
+    }
+
+    private function appendRepairAlerts(array &$notifs): void
+    {
+        if (! Schema::hasColumn('inventario_series', 'estado')) {
+            return;
+        }
+
+        $reparaciones = DB::table('inventario_series as is')
+            ->join('catalogo_articulos as ca', 'is.articulo_id', '=', 'ca.id')
+            ->where('is.estado', InventarioSerie::ESTADO_REPARACION)
+            ->whereNull('is.deleted_at')
+            ->where('is.updated_at', '<=', Carbon::now()->subDays(15))
+            ->select('ca.nombre', 'is.codigo_interno_generado', 'is.updated_at')
+            ->limit(5)
+            ->get();
+
+        foreach ($reparaciones as $r) {
+            $dias = Carbon::parse($r->updated_at)->diffInDays();
+            $notifs[] = [
+                'tipo' => 'reparacion',
+                'urgente' => $dias > 30,
+                'titulo' => "Reparacion prolongada: {$r->nombre}",
+                'mensaje' => "SKU {$r->codigo_interno_generado} lleva {$dias} dias en reparacion",
+            ];
+        }
+    }
+
+    private function appendWarrantyAlerts(array &$notifs): void
+    {
+        if (! Schema::hasColumn('inventario_series', 'fecha_vencimiento_garantia')) {
+            return;
+        }
+
+        $garantias = DB::table('inventario_series as is')
+            ->join('catalogo_articulos as ca', 'is.articulo_id', '=', 'ca.id')
+            ->whereNull('is.deleted_at')
+            ->whereNotNull('is.fecha_vencimiento_garantia')
+            ->whereBetween('is.fecha_vencimiento_garantia', [Carbon::now()->toDateString(), Carbon::now()->addDays(30)->toDateString()])
+            ->select('ca.nombre', 'is.codigo_interno_generado', 'is.fecha_vencimiento_garantia')
+            ->limit(5)
+            ->get();
+
+        foreach ($garantias as $g) {
+            $vence = Carbon::parse($g->fecha_vencimiento_garantia);
+            $notifs[] = [
+                'tipo' => 'garantia',
+                'urgente' => $vence->lte(Carbon::now()->addDays(7)),
+                'titulo' => "Garantia por vencer: {$g->nombre}",
+                'mensaje' => "SKU {$g->codigo_interno_generado} vence el ".$vence->format('d/m/Y'),
+            ];
+        }
+    }
+
+    private function appendVehicleMaintenanceAlerts(array &$notifs): void
+    {
+        if (! Schema::hasTable('vehiculos_flotilla') || ! Schema::hasTable('registros_vehiculares')) {
+            return;
+        }
+
+        $vehiculos = DB::table('vehiculos_flotilla')
+            ->whereIn('estado', ['ACTIVO', 'DISPONIBLE', 'ASIGNADO', 'EN_MANTENIMIENTO'])
+            ->whereNull('deleted_at')
+            ->limit(100)
+            ->get();
+
+        foreach ($vehiculos as $vehiculo) {
+            // ── 1. Seguro por vencer ─────────────────────────────────────
+            if (Schema::hasColumn('vehiculos_flotilla', 'vencimiento_seguro') && $vehiculo->vencimiento_seguro) {
+                $venceSeg = Carbon::parse($vehiculo->vencimiento_seguro);
+                $diasSeguro = (int) Carbon::now()->diffInDays($venceSeg, false);
+                if ($diasSeguro <= 30) {
+                    $notifs[] = [
+                        'tipo'    => 'seguro_vehiculo',
+                        'urgente' => $diasSeguro <= 7,
+                        'titulo'  => "Seguro por vencer: {$vehiculo->nombre}",
+                        'mensaje' => $diasSeguro <= 0
+                            ? "El seguro VENCIÓ el {$venceSeg->format('d/m/Y')}."
+                            : "El seguro vence en {$diasSeguro} días ({$venceSeg->format('d/m/Y')}).",
+                    ];
+                }
+            }
+
+            // ── 2. GPS no funcional ──────────────────────────────────────
+            if (Schema::hasColumn('vehiculos_flotilla', 'gps_activo')) {
+                $gpsOk = (bool) $vehiculo->gps_activo;
+                $estadoGps = $vehiculo->estado_gps ?? null;
+                if (! $gpsOk || (is_string($estadoGps) && ! in_array(strtoupper($estadoGps), ['OK', 'ACTIVO', 'FUNCIONAL']))) {
+                    $notifs[] = [
+                        'tipo'    => 'gps_vehiculo',
+                        'urgente' => true,
+                        'titulo'  => "GPS no funcional: {$vehiculo->nombre}",
+                        'mensaje' => "Estado GPS: " . ($estadoGps ?? 'Sin información') . ". Verifica el dispositivo.",
+                    ];
+                }
+            }
+
+            // ── 3. Sin KM actualizado (> 15 días sin actualizar) ─────────
+            if (Schema::hasColumn('vehiculos_flotilla', 'ultima_actualizacion_km') && $vehiculo->ultima_actualizacion_km) {
+                $diasSinKm = Carbon::parse($vehiculo->ultima_actualizacion_km)->diffInDays();
+                if ($diasSinKm > 15 && $vehiculo->estado !== 'EN_MANTENIMIENTO') {
+                    $notifs[] = [
+                        'tipo'    => 'km_vehiculo',
+                        'urgente' => $diasSinKm > 30,
+                        'titulo'  => "Sin km actualizado: {$vehiculo->nombre}",
+                        'mensaje' => "Han pasado {$diasSinKm} días sin actualizar el kilometraje.",
+                    ];
+                }
+            }
+
+            // ── 4. En mantenimiento prolongado por estatus ───────────────
+            if ($vehiculo->estado === 'EN_MANTENIMIENTO') {
+                // Buscar el último registro de mantenimiento correctivo
+                $ultimoCorrectivo = DB::table('registros_vehiculares')
+                    ->where('vehiculo_id', $vehiculo->id)
+                    ->whereIn('tipo', ['correctivo', 'reparacion', 'correctivo_mayor'])
+                    ->whereNull('deleted_at')
+                    ->orderByDesc('fecha')
+                    ->first(['fecha', 'tipo']);
+
+                $diasEnMant = $ultimoCorrectivo
+                    ? Carbon::parse($ultimoCorrectivo->fecha)->diffInDays()
+                    : null;
+
+                // También revisamos el updated_at del vehículo si no hay registro
+                if (is_null($diasEnMant)) {
+                    $diasEnMant = Carbon::parse($vehiculo->updated_at)->diffInDays();
+                }
+
+                if ($diasEnMant > 30) {
+                    $notifs[] = [
+                        'tipo'    => 'mantenimiento_prolongado',
+                        'urgente' => $diasEnMant > 60,
+                        'titulo'  => "Mantenimiento prolongado: {$vehiculo->nombre}",
+                        'mensaje' => "Lleva {$diasEnMant} días en estatus EN_MANTENIMIENTO.",
+                    ];
+                }
+
+                continue; // No evaluar preventivos para vehículos en taller
+            }
+
+            // ── 5. Mantenimiento preventivo próximo ─────────────────────
+            $maxKm = (float) DB::table('registros_vehiculares')
+                ->where('vehiculo_id', $vehiculo->id)
+                ->whereNull('deleted_at')
+                ->max('kilometraje');
+
+            $ultimoPreventivo = DB::table('registros_vehiculares')
+                ->where('vehiculo_id', $vehiculo->id)
+                ->where('tipo', 'preventivo')
+                ->whereNull('deleted_at')
+                ->orderByDesc('fecha')
+                ->orderByDesc('kilometraje')
+                ->first(['fecha', 'kilometraje']);
+
+            if (! $ultimoPreventivo) {
+                $notifs[] = [
+                    'tipo'    => 'vehiculo',
+                    'urgente' => false,
+                    'titulo'  => "Vehiculo sin preventivo: {$vehiculo->nombre}",
+                    'mensaje' => 'No hay mantenimiento preventivo registrado.',
+                ];
+                continue;
+            }
+
+            $kmRestantes         = ((float) $ultimoPreventivo->kilometraje + 10000) - $maxKm;
+            $diasDesdePreventivo = Carbon::parse($ultimoPreventivo->fecha)->diffInDays();
+
+            if ($kmRestantes <= 500 || $diasDesdePreventivo >= 180) {
+                $notifs[] = [
+                    'tipo'    => 'vehiculo',
+                    'urgente' => $kmRestantes <= 0 || $diasDesdePreventivo >= 210,
+                    'titulo'  => "Mantenimiento proximo: {$vehiculo->nombre}",
+                    'mensaje' => "Restan {$kmRestantes} km o han pasado {$diasDesdePreventivo} dias desde el ultimo preventivo.",
+                ];
+            }
+        }
     }
  
     public function search(Request $request)
@@ -192,7 +436,7 @@ class DashboardController extends Controller
  
         $results = [];
  
-        DB::table('catalogo_articulos')->where('activo', true)
+        DB::table('catalogo_articulos')->whereNull('deleted_at')
             ->where(fn($query) => $query->where('nombre','like',"%{$q}%")->orWhere('modelo','like',"%{$q}%"))
             ->limit(4)->get()
             ->each(fn($a) => $results[] = ['type'=>'articulo','label'=>$a->nombre,'sub'=>$a->modelo,'url'=>"/almacen/articulo/{$a->id}"]);
@@ -222,10 +466,10 @@ class DashboardController extends Controller
                 ->where('ca.activo', true)
                 ->select('ca.nombre','ca.modelo','sc.nombre as subcategoria','ca.unidad_medida',
                     'sg.cantidad','ca.stock_minimo','sg.ubicacion',
-                    DB::raw("CASE WHEN sg.cantidad <= ca.stock_minimo*0.2 THEN 'CRÃTICO' WHEN sg.cantidad <= ca.stock_minimo THEN 'BAJO' ELSE 'NORMAL' END as estado"))
+                    DB::raw("CASE WHEN sg.cantidad <= ca.stock_minimo*0.2 THEN 'CRITICO' WHEN sg.cantidad <= ca.stock_minimo THEN 'BAJO' ELSE 'NORMAL' END as estado"))
                 ->get();
  
-            $rows = [['ArtÃ­culo','Modelo','SubcategorÃ­a','Unidad','Stock','MÃ­nimo','UbicaciÃ³n','Estado','Actualizado']];
+            $rows = [['Articulo','Modelo','Subcategoria','Unidad','Stock','Minimo','Ubicacion','Estado','Actualizado']];
             foreach ($inventario as $item) {
                 $rows[] = [$item->nombre,$item->modelo??'',$item->subcategoria??'',$item->unidad_medida,
                     $item->cantidad,$item->stock_minimo,$item->ubicacion,$item->estado,Carbon::now()->format('d/m/Y H:i')];
@@ -292,4 +536,3 @@ class DashboardController extends Controller
     }
 
 }
-

@@ -16,7 +16,7 @@ export default defineConfig({
     react(),
   ],
   server: {
-    port: 5173,
+    port: 5176,
     strictPort: true,
     proxy: {
       // Redirige /api/* y /sanctum/* al backend Laravel

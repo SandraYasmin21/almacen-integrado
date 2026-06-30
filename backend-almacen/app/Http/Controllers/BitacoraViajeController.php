@@ -7,6 +7,7 @@ use App\Models\RegistroVehicular;
 use App\Models\VehiculoFlotilla;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Schema;
 
 class BitacoraViajeController extends Controller
 {
@@ -115,6 +116,11 @@ class BitacoraViajeController extends Controller
         }
 
         $viaje->update($validated);
+        if (isset($validated['km_final']) && Schema::hasColumn('vehiculos_flotilla', 'kilometraje_actual')) {
+            $viaje->vehiculo?->update([
+                'kilometraje_actual' => max((float) $viaje->vehiculo->kilometraje_actual, (float) $validated['km_final']),
+            ]);
+        }
 
         return response()->json([
             'mensaje' => 'Regreso del vehículo registrado',

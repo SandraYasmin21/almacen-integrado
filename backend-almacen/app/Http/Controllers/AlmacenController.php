@@ -5,12 +5,17 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\GenericExport;
 use App\Exports\InventarioExport;
 use App\Http\Controllers\OrdenCompraController;
+use App\Models\MovimientoInventario;
+use App\Services\InventarioService;
+use App\Services\PeriodoOperativoService;
 
 class AlmacenController extends Controller
 {
@@ -36,12 +41,29 @@ class AlmacenController extends Controller
             'notas'        => $data['notas'] ?? null,
         ];
 
+        if (Schema::hasColumn('movimiento_inventario', 'folio')) {
+            $payload['folio'] = $this->generarFolioMovimiento();
+        }
+
+        if (Schema::hasColumn('movimiento_inventario', 'motivo')) {
+            $payload['motivo'] = $data['motivo'] ?? $data['notas'] ?? null;
+        }
+
         if (Schema::hasColumn('movimiento_inventario', 'created_at')) {
             $payload['created_at'] = Carbon::now();
             $payload['updated_at'] = Carbon::now();
         }
 
         return DB::table('movimiento_inventario')->insertGetId($payload);
+    }
+
+    private function generarFolioMovimiento(): string
+    {
+        do {
+            $folio = 'MOV-' . Carbon::now()->format('Ymd-His') . '-' . strtoupper(Str::random(4));
+        } while (DB::table('movimiento_inventario')->where('folio', $folio)->exists());
+
+        return $folio;
     }
 
     private function insertDetalle(int $movimientoId, array $data): void
@@ -373,7 +395,7 @@ class AlmacenController extends Controller
             ->select(
                 DB::raw("'Consumible' as tipo_registro"),
                 'ca.nombre',
-                'ca.marca',
+                'ca.marca_fabricante as marca',
                 'ca.modelo',
                 DB::raw("{$modeloConsumible} as sku_serie"),
                 'sc.nombre as subcategoria',
@@ -396,7 +418,7 @@ class AlmacenController extends Controller
             ->select(
                 DB::raw("'Serie' as tipo_registro"),
                 'ca.nombre',
-                'ca.marca',
+                'ca.marca_fabricante as marca',
                 'ca.modelo',
                 'invs.numero_serie_fabricante as sku_serie',
                 'sc.nombre as subcategoria',
@@ -500,7 +522,7 @@ class AlmacenController extends Controller
                 'ca.id as articulo_id',
                 DB::raw('NULL as serie_id'), 
                 'ca.nombre',
-                'ca.marca',                    // Añadimos Marca
+                'ca.marca_fabricante as marca',                    // Añadimos Marca
                 'ca.modelo as modeloarticulo', // Renombramos el modelo del artículo
                 $modeloConsumible,             // Mantener alineado el SKU en la columna "modelo"
                 $fechaConsumible,              // Fecha de consumo para consumibles, NULL para generales
@@ -530,7 +552,7 @@ class AlmacenController extends Controller
                 'ca.id as articulo_id',
                 'invs.id as serie_id',
                 'ca.nombre',
-                'ca.marca',                                // Añadimos Marca
+                'ca.marca_fabricante as marca',                                // Añadimos Marca
                 'ca.modelo as modeloarticulo',             // Renombramos el modelo del artículo
                 'invs.codigo_interno_generado as modelo',  // Aquí la columna "modelo" lleva el SKU de la serie
                 'invs.fecha_adquisicion',                   // Fecha de adquisición para series, NULL para consumibles
@@ -609,7 +631,8 @@ class AlmacenController extends Controller
             ->whereNull('mi.deleted_at') 
             ->select(
                 'mi.id', 
-                'mi.tipo_movimiento as tipo', // <-- Corregido a tipo_movimiento
+                DB::raw(Schema::hasColumn('movimiento_inventario', 'folio') ? 'mi.folio' : 'CAST(mi.id AS TEXT) as folio'),
+                DB::raw("mi.{$tipoColumn} as tipo"),
                 'mi.fecha_hora', 
                 DB::raw("$columnaNombreUsuario as usuario"), 
                 'mi.notas'
@@ -633,6 +656,33 @@ class AlmacenController extends Controller
                 'movimientos_recientes' => $movimientos
             ]
         ]);
+    }
+
+    public function descargarPlantillaImportacion(InventarioService $inventarioService)
+    {
+        return Excel::download(
+            new GenericExport($inventarioService->plantillaRows(), $inventarioService->plantillaHeadings()),
+            'Plantilla_Ingreso_Inventario.xlsx',
+            \Maatwebsite\Excel\Excel::XLSX
+        );
+    }
+
+    public function importarArchivo(Request $request, InventarioService $inventarioService)
+    {
+        $validated = $request->validate([
+            'archivo' => 'required|file|mimes:xlsx,xls,csv,txt|max:10240',
+            'proveedor_id' => 'nullable|integer',
+            'notas' => 'nullable|string|max:1000',
+        ]);
+
+        $result = $inventarioService->importarEntradaMasiva(
+            $validated['archivo'],
+            $validated['proveedor_id'] ?? null,
+            $validated['notas'] ?? null,
+            auth()->id()
+        );
+
+        return response()->json($result, $result['success'] ? 200 : 422);
     }
 
     public function importarCSV(Request $request)
@@ -689,7 +739,7 @@ class AlmacenController extends Controller
                     ->whereNull('deleted_at') // <-- FIJA ESTA LÍNEA AQUÍ (Ignora los borrados en pruebas)
                     ->where('nombre', $nombre)
                     ->where(function ($q) use ($marca) {
-                        $marca === null ? $q->whereNull('marca') : $q->where('marca', $marca);
+                        $marca === null ? $q->whereNull('marca_fabricante') : $q->where('marca_fabricante', $marca);
                     })
                     ->where(function ($q) use ($modelo) {
                         $modelo === null ? $q->whereNull('modelo') : $q->where('modelo', $modelo);
@@ -701,7 +751,7 @@ class AlmacenController extends Controller
                     $articuloId = DB::table('catalogo_articulos')->insertGetId([
                         'subcategoria_id' => $subcategoriaId,
                         'nombre' => $nombre,
-                        'marca' => $marca,
+                        'marca_fabricante' => $marca,
                         'modelo' => $modelo, 
                         'requiere_serie' => $requiereSerie,
                         'es_consumible' => !$requiereSerie,
@@ -1222,8 +1272,23 @@ class AlmacenController extends Controller
         return response()->json(['success' => true, 'message' => 'Devolución registrada correctamente.', 'data' => $data]);
     }
 
-    public function registrarMovimiento(Request $request)
+    public function registrarMovimiento(Request $request, InventarioService $inventarioService)
     {
+        $this->authorize('create', MovimientoInventario::class);
+
+        $tipo = strtoupper(str_replace(['-', ' '], '_', (string) ($request->input('tipo') ?? $request->input('tipo_movimiento'))));
+        $tiposAvanzados = [
+            MovimientoInventario::TIPO_TRANSFERENCIA,
+            MovimientoInventario::TIPO_ENVIO_REPARACION,
+            MovimientoInventario::TIPO_RETORNO_REPARACION,
+            MovimientoInventario::TIPO_CAMBIO_RESPONSABLE,
+            MovimientoInventario::TIPO_BAJA_LOGICA,
+        ];
+
+        if (in_array($tipo, $tiposAvanzados, true)) {
+            return response()->json($inventarioService->registrarMovimientoAvanzado($request->all(), auth()->id()));
+        }
+
         return match ($request->input('tipo')) {
             'entrada' => $this->registrarEntrada($request),
             'salida' => $this->registrarSalida($request),
@@ -1273,6 +1338,7 @@ class AlmacenController extends Controller
 
         return $query->select(
             'mi.id',
+            DB::raw(Schema::hasColumn('movimiento_inventario', 'folio') ? 'mi.folio' : 'CAST(mi.id AS TEXT) as folio'),
             DB::raw("LOWER(CAST(mi.{$tipoColumn} AS TEXT)) as tipo"),
             'mi.fecha_hora',
             'mi.notas',
@@ -1311,8 +1377,12 @@ class AlmacenController extends Controller
         return response()->json(['success' => true, 'data' => $movimiento]);
     }
 
-    public function actualizarMovimiento(Request $request, int $id)
+    public function actualizarMovimiento(Request $request, int $id, PeriodoOperativoService $periodos)
     {
+        $movimiento = MovimientoInventario::query()->findOrFail($id);
+        $this->authorize('update', $movimiento);
+        $periodos->assertMovimientoEditable($movimiento, $request->user());
+
         $validated = $request->validate([
             'notas' => 'nullable|string|max:500',
             'empleado_id' => 'nullable|integer|exists:empleados,id',
@@ -1334,8 +1404,12 @@ class AlmacenController extends Controller
         return response()->json(['success' => true, 'message' => 'Movimiento actualizado correctamente.']);
     }
 
-    public function eliminarMovimiento(int $id)
+    public function eliminarMovimiento(Request $request, int $id, PeriodoOperativoService $periodos)
     {
+        $movimiento = MovimientoInventario::query()->findOrFail($id);
+        $this->authorize('delete', $movimiento);
+        $periodos->assertMovimientoEditable($movimiento, $request->user());
+
         DB::transaction(function () use ($id) {
             $tipoColumn = $this->tipoColumn();
             $mov = DB::table('movimiento_inventario')->where('id', $id)->lockForUpdate()->first();
@@ -1399,6 +1473,59 @@ class AlmacenController extends Controller
         });
 
         return response()->json(['success' => true, 'message' => 'Movimiento eliminado correctamente.']);
+    }
+
+    public function registrarAjusteFisico(Request $request)
+    {
+        $validated = $request->validate([
+            'articulo_id' => 'required|integer|exists:catalogo_articulos,id',
+            'cantidad'    => 'required|numeric|min:1',
+            'operacion'   => 'required|in:sumar,restar',
+            'motivo'      => 'required|string|min:5|max:1000',
+        ]);
+
+        $articuloId = $validated['articulo_id'];
+        $cantidad = $validated['cantidad'];
+        $operacion = $validated['operacion'];
+        
+        DB::beginTransaction();
+        try {
+            $stockActual = DB::table('stock_general')
+                ->where('articulo_id', $articuloId)
+                ->whereNull('deleted_at')
+                ->sum('cantidad');
+
+            if ($operacion === 'restar' && $stockActual < $cantidad) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Stock insuficiente. Actual: {$stockActual}, a restar: {$cantidad}."
+                ], 422);
+            }
+
+            $cantidadMovimiento = $operacion === 'sumar' ? $cantidad : -$cantidad;
+            $this->incrementStock($articuloId, $cantidadMovimiento, 'ALMACEN_PRINCIPAL');
+
+            $movimientoId = $this->insertMovimiento('ajuste', [
+                'notas' => "Ajuste de inventario ($operacion): " . $validated['motivo'],
+            ]);
+            
+            $this->insertDetalle($movimientoId, [
+                'articulo_id' => $articuloId,
+                'cantidad'    => $cantidadMovimiento
+            ]);
+
+            DB::commit();
+            return response()->json([
+                'success' => true,
+                'message' => 'Ajuste de inventario registrado correctamente.'
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al procesar el ajuste: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     private function articleTypeSelect(): string

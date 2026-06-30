@@ -204,7 +204,7 @@ class EmpleadoController extends Controller
         $bitacora = DB::table('bitacora_vehiculos as bv')
             ->join('vehiculos_flotilla as vf', 'bv.vehiculo_id', '=', 'vf.id')
             ->where('bv.empleado_id', $id)
-            ->select('bv.*', 'vf.nombre as vehiculo_nombre', 'vf.placa')
+            ->select('bv.*', 'vf.nombre as vehiculo_nombre', DB::raw("COALESCE(vf.placa, vf.placas, '') as placa"))
             ->orderByDesc('bv.fecha_hora_salida')
             ->limit(10)
             ->get();

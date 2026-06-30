@@ -270,7 +270,7 @@ class OrdenCompraController extends Controller
             ->leftJoin('stock_general as sg', 'ca.id', '=', 'sg.articulo_id')
             ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
             ->leftJoin('categorias as cat', 'sc.categoria_id', '=', 'cat.id')
-            ->where('ca.activo', true)
+            ->whereNull('ca.deleted_at')
             ->where(function ($q) {
                 $q->whereNull('sg.cantidad')
                   ->orWhere('sg.cantidad', '<=', 0);

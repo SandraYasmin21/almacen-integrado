@@ -10,59 +10,59 @@ import {
   BellSlashIcon
 } from "@heroicons/react/24/outline";
 
-// Dummy data simulando lo que vendría de Laravel Notifications
-const initialNotifications = [
-  {
-    id: 1,
-    type: "critical",
-    title: "Stock crítico alcanzado",
-    description: "Quedan solo 3 unidades de Cables HDMI 2m en el Almacén.",
-    time: "Hace 10 min",
-    read: false,
-    icon: ExclamationTriangleIcon,
-    colorClass: "text-red-500",
-    bgClass: "bg-red-50",
-  },
-  {
-    id: 2,
-    type: "critical",
-    title: "Póliza vencida",
-    description: "El seguro de la RAM Roja (Placas TMX-1234) venció hoy.",
-    time: "Hace 1 hora",
-    read: false,
-    icon: ExclamationTriangleIcon,
-    colorClass: "text-red-500",
-    bgClass: "bg-red-50",
-  },
-  {
-    id: 3,
-    type: "warning",
-    title: "Mantenimiento próximo",
-    description: "La Ranger Blanca está a 500 km de su próximo mantenimiento.",
-    time: "Hace 3 horas",
-    read: true,
-    icon: ClockIcon,
-    colorClass: "text-amber-500",
-    bgClass: "bg-amber-50",
-  },
-  {
-    id: 4,
-    type: "info",
-    title: "Retorno de ruta",
-    description: "La Silverado 834 regresó a base con 185 km registrados.",
-    time: "Hace 5 horas",
-    read: true,
-    icon: CheckCircleIcon,
-    colorClass: "text-blue-500",
-    bgClass: "bg-blue-50",
-  }
-];
+import { apiFetch } from "@/lib/auth";
 
 export default function NotificationPopover() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("all"); // 'all', 'critical', 'info'
   const popoverRef = useRef(null);
+
+  const loadNotifications = async () => {
+    try {
+      const res = await apiFetch("/api/notifications");
+      if (res.ok) {
+        const data = await res.json();
+        const mapped = data.map((n, index) => {
+          let icon = CheckCircleIcon;
+          let colorClass = "text-blue-500";
+          let bgClass = "bg-blue-50";
+          let type = "info";
+
+          if (n.urgente) {
+            icon = ExclamationTriangleIcon;
+            colorClass = "text-red-500";
+            bgClass = "bg-red-50";
+            type = "critical";
+          } else if (n.tipo === 'prestamo' || n.tipo === 'garantia' || n.tipo.includes('seguro')) {
+            icon = ClockIcon;
+            colorClass = "text-amber-500";
+            bgClass = "bg-amber-50";
+            type = "warning";
+          }
+
+          return {
+            id: index + 1,
+            type,
+            title: n.titulo,
+            description: n.mensaje,
+            time: "Reciente",
+            read: false,
+            icon,
+            colorClass,
+            bgClass,
+          };
+        });
+        setNotifications(mapped);
+      }
+    } catch (e) {
+      console.error("Error loading notifications", e);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   // Cerrar al hacer click afuera
   useEffect(() => {

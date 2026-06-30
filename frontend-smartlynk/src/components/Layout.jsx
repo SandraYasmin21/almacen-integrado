@@ -1,348 +1,358 @@
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Fragment, useState } from 'react';
+import { Disclosure, Menu, Transition } from '@headlessui/react';
+import { ArrowLeftOnRectangleIcon, Bars3Icon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import {
   ArchiveBoxIcon,
-  ArrowLeftOnRectangleIcon,
-  Bars3Icon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CubeIcon,
-  HomeIcon,
-  MagnifyingGlassIcon,
-  MoonIcon,
   ShoppingCartIcon,
-  SunIcon,
-  TruckIcon,
   UsersIcon,
-} from "@heroicons/react/24/outline";
-import { Toaster } from "sonner";
+  WrenchScrewdriverIcon,
+  DocumentDuplicateIcon,
+  TruckIcon,
+  ListBulletIcon,
+} from '@heroicons/react/24/solid';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import ApplicationLogo from './ApplicationLogo';
+import NotificationPopover from './NotificationPopover';
+import { clearSession, getStoredUser } from '@/lib/auth';
 
-import { apiFetch, clearSession } from "@/lib/auth";
-import NotificationPopover from "./NotificationPopover";
-
-const navItems = [
-  { name: "Dashboard", icon: HomeIcon, path: "/dashboard", section: "PRINCIPAL" },
-  { name: "Catálogo Central", icon: ArchiveBoxIcon, path: "/catalogo", section: "MÓDULOS" },
+const navigation = [
   {
-    name: "Almacén Físico",
+    name: 'Catálogo Central',
+    icon: ListBulletIcon,
+    path: '/catalogo',
+    defaultPath: '/catalogo/articulos',
+    section: 'ADMINISTRACIÓN',
+    subItems: [
+      { name: 'Artículos', path: '/catalogo/articulos' },
+      { name: 'Vehículos', path: '/catalogo/vehiculos' },
+      { name: 'Subcategorías', path: '/catalogo/subcategorias' },
+      { name: 'Configurables', path: '/catalogo/configurables' },
+    ],
+  },
+  {
+    name: 'Administración de Activos',
     icon: ArchiveBoxIcon,
-    path: "/almacen",
-    defaultPath: "/almacen/stock",
-    section: "MÓDULOS",
+    path: '/activos',
+    defaultPath: '/activos/recepcion',
+    section: 'MÓDULOS',
     subItems: [
-      { name: "Dashboard", path: "/almacen/dashboard" },
-      { name: "Estado de Stock", path: "/almacen/stock" },
-      { name: "Recepción de Mercancía", path: "/almacen/recepcion" },
-      { name: "Solicitud de materiales", path: "/almacen/ordenes-compra" },
-      { name: "Ajustes y Auditorías", path: "/almacen/ajustes" },
-      { name: "Historial y Bitácora", path: "/almacen/historial" },
+      { name: 'Recepción', path: '/activos/recepcion' },
+      { name: 'Estado de stock', path: '/activos/inventario' },
+      { name: 'Historial y ajustes', path: '/activos/movimientos' },
     ],
   },
   {
-    name: "Mostrador",
+    name: 'Mostrador',
     icon: ShoppingCartIcon,
-    path: "/mostrador",
-    defaultPath: "/mostrador/terminal",
-    section: "MÓDULOS",
+    path: '/mostrador',
+    defaultPath: '/mostrador/terminal',
+    section: 'MÓDULOS',
     subItems: [
-      { name: "Terminal de Escáner", path: "/mostrador/terminal" },
-      { name: "Historial de Resguardos y prestamos", path: "/mostrador/resguardos" },
-      { name: "Devoluciones", path: "/mostrador/devoluciones" },
+      { name: 'Terminal de Escáner', path: '/mostrador/terminal' },
+      { name: 'Historial de resguardos y préstamos', path: '/mostrador/resguardos' },
+      { name: 'Devoluciones', path: '/mostrador/devoluciones' },
     ],
   },
   {
-    name: "Empleados",
+    name: 'Empleados',
     icon: UsersIcon,
-    path: "/empleados",
-    defaultPath: "/empleados/directorio",
-    section: "MÓDULOS",
+    path: '/empleados',
+    defaultPath: '/empleados/directorio',
+    section: 'MÓDULOS',
     subItems: [
-      { name: "Directorio", path: "/empleados/directorio" },
-      { name: "Resguardos", path: "/empleados/resguardos" },
-      { name: "Préstamos Pendientes", path: "/empleados/prestamos" },
-      { name: "Control de Usuarios", path: "/empleados/perfiles-kiosco" },
+      { name: 'Directorio', path: '/empleados/directorio' },
+      { name: 'Resguardos', path: '/empleados/resguardos' },
+      { name: 'Préstamos pendientes', path: '/empleados/prestamos' },
+      { name: 'Control de usuarios', path: '/admin/usuarios-sistema' },
     ],
   },
   {
-    name: "Operaciones Externas",
+    name: 'Operaciones externas',
     icon: TruckIcon,
-    path: "/operaciones",
-    defaultPath: "/operaciones/gestor-documental",
-    section: "MÓDULOS",
+    path: '/operaciones',
+    defaultPath: '/operaciones/ventas-ocasionales',
+    section: 'MÓDULOS',
     subItems: [
-      { name: "Ventas Ocasionales", path: "/operaciones/ventas-ocasionales" },
-      { name: "Control de Facturas", path: "/operaciones/gestor-documental" },
-      { name: "Hojas de entrega Externos", path: "/operaciones/hojas-entrega" },
+      { name: 'Ventas ocasionales', path: '/operaciones/ventas-ocasionales' },
+      { name: 'Gestor documental', path: '/operaciones/gestor-documental' },
+      { name: 'Hojas de entrega', path: '/operaciones/hojas-entrega' },
     ],
   },
   {
-    name: "Flotilla Vehicular",
+    name: 'Flotilla',
     icon: TruckIcon,
-    path: "/flotilla",
-    defaultPath: "/flotilla/dashboard",
-    section: "MÓDULOS",
+    path: '/flotilla',
+    defaultPath: '/flotilla/dashboard',
+    section: 'MÓDULOS',
     subItems: [
-      { name: "Dashboard", path: "/flotilla/dashboard" },
-      { name: "Catálogo Vehículos", path: "/flotilla/vehiculos" },
-      { name: "Mantenimientos", path: "/flotilla/mantenimientos" },
-      { name: "Gastos Extra", path: "/flotilla/gastos" },
-      { name: "Bitácora Viajes", path: "/flotilla/bitacora" },
-      { name: "Kilometraje", path: "/flotilla/kilometraje" },
+      { name: 'Dashboard flotilla', path: '/flotilla/dashboard' },
+      { name: 'Catálogo de vehículos', path: '/flotilla/vehiculos' },
+      { name: 'Registro de mantenimientos', path: '/flotilla/mantenimientos' },
+      { name: 'Gastos extra', path: '/flotilla/gastos' },
+      { name: 'Bitácora de viajes', path: '/flotilla/bitacora' },
+      { name: 'Control de kilometraje', path: '/flotilla/kilometraje' },
+    ],
+  },
+  {
+    name: 'Proyectos',
+    icon: WrenchScrewdriverIcon,
+    path: '/proyectos',
+    defaultPath: '/proyectos',
+    section: 'MÓDULOS',
+  },
+  {
+    name: 'Reportes',
+    icon: DocumentDuplicateIcon,
+    path: '/reportes',
+    defaultPath: '/reportes/basicos',
+    section: 'REPORTES',
+    subItems: [
+      { name: 'Reportes básicos', path: '/reportes/basicos' },
+      { name: 'Reportes vehiculares', path: '/reportes/vehiculares' },
     ],
   },
 ];
 
+const rolePermissions = {
+  '/admin/usuarios-sistema': ['Admin'],
+  '/catalogo': ['Admin', 'Almacen', 'Almacenista'],
+  '/activos': ['Admin', 'Almacen', 'Almacenista', 'Proyecto', 'Direccion'],
+};
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
 export default function Layout() {
-  const [isExpanded, setIsExpanded] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const location = useLocation();
+  const navigate = useNavigate();
+  const [globalSearch, setGlobalSearch] = useState('');
 
-  const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("smartlynk_user") || "null") : null;
-  const initials = user?.nombre_usuario?.substring(0, 1).toUpperCase() || "U";
+  const user = getStoredUser() || { nombre_usuario: 'Usuario', email: '', rol_acceso: 'Usuario' };
+  const userRole = user.rol_acceso || user.rol || 'Usuario';
+  const userName = user.nombre_usuario || user.email || 'Usuario';
+  const userDisplayName = userRole === 'Admin' ? 'Administrador Principal' : userName;
+  const userDisplayRole = userRole === 'Admin' ? 'Administrador' : userRole;
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", isDarkMode);
-    localStorage.setItem("theme", isDarkMode ? "dark" : "light");
-  }, [isDarkMode]);
-
-  useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location.pathname]);
-
-  const handleLogout = async () => {
-    try {
-      await apiFetch("/api/auth/logout", { method: "POST" });
-    } catch {
-      // La sesión local se limpia aunque el token ya haya expirado.
-    }
-
+  const handleLogout = (event) => {
+    event?.preventDefault();
     clearSession();
-    window.location.href = "/login";
+    window.dispatchEvent(new Event('authChange'));
+    navigate('/login');
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 font-sans">
-      <Toaster
-        position="top-right"
-        richColors
-        visibleToasts={1}
-        duration={3000}
-        toastOptions={{
-          className: "smartlynk-toast",
-          style: {
-            borderRadius: "14px",
-            boxShadow: "0 20px 45px -24px rgba(15, 23, 42, 0.45), 0 8px 18px -16px rgba(15, 23, 42, 0.35)",
-            fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
-            zIndex: 9999,
-          },
-        }}
-      />
+  const handleGlobalSearch = (event) => {
+    event.preventDefault();
+    const query = globalSearch.trim();
+    if (!query) return;
+    navigate(`/catalogo?q=${encodeURIComponent(query)}`);
+  };
 
-      {/* Overlay para móvil */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm lg:hidden"
-          onClick={() => setIsSidebarOpen(false)}
-        />
-      )}
+  const hasAccess = (path) => {
+    const match = Object.entries(rolePermissions).find(([key]) => path === key || path.startsWith(`${key}/`));
+    if (!match) return true;
+    return match[1].includes(userRole);
+  };
 
-      <motion.aside
-        initial={{ width: 260 }}
-        animate={{ width: isExpanded ? 260 : 80 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[#1e1e2d] text-slate-300 shadow-xl transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => setIsExpanded((value) => !value)}
-          className="absolute -right-3 top-6 z-30 hidden rounded-full bg-blue-600 p-1 text-white shadow-md transition-colors hover:bg-blue-500 lg:block"
-        >
-          {isExpanded ? <ChevronLeftIcon className="h-4 w-4" /> : <ChevronRightIcon className="h-4 w-4" />}
-        </button>
+  const renderNavItems = (items) => items.map((item) => {
+    const isParentActive = location.pathname.startsWith(item.path);
 
-        <div className="flex h-20 shrink-0 items-center overflow-hidden bg-[#1a1a27] px-4">
-          {isExpanded ? (
-            <motion.div
-              key="full-logo"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex w-full items-center gap-3"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500 shadow-lg shadow-blue-500/30">
-                <CubeIcon className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-sm font-bold tracking-wide text-white">Gestión Almacén</h1>
-                <p className="text-xs text-slate-500">Sistema Integrado</p>
-              </div>
-            </motion.div>
-          ) : (
-            <div className="flex w-full justify-center">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500 shadow-lg shadow-blue-500/30">
-                <CubeIcon className="h-5 w-5 text-white" />
-              </div>
-            </div>
-          )}
-        </div>
+    if (item.subItems) {
+      const visibleSubItems = item.subItems.filter((subItem) => hasAccess(subItem.path));
+      if (!visibleSubItems.length) return null;
 
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 scrollbar-thin scrollbar-thumb-slate-700">
-          <ul className="space-y-1">
-            {navItems.map((item, index) => {
-              const isActiveGroup = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
-              const showSectionHeader = isExpanded && (index === 0 || navItems[index - 1].section !== item.section);
-
-              return (
-                <li key={item.name} className="px-3">
-                  {showSectionHeader && (
-                    <div className="mb-2 mt-4 px-3 text-[10px] font-semibold tracking-wider text-slate-500">
-                      {item.section}
-                    </div>
-                  )}
-
-                  <NavLink
-                    to={item.defaultPath || item.path}
-                    className={() =>
-                      `group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-all duration-200 ${
-                        isActiveGroup ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" : "hover:bg-white/5 hover:text-white"
-                      }`
-                    }
-                  >
-                    <item.icon className={`h-5 w-5 shrink-0 ${isActiveGroup ? "text-white" : "text-slate-400 group-hover:text-blue-400"}`} />
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.span
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: "auto" }}
-                          exit={{ opacity: 0, width: 0 }}
-                          className="overflow-hidden whitespace-nowrap text-sm font-medium"
-                        >
-                          {item.name}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </NavLink>
-
-                  <AnimatePresence>
-                    {isExpanded && isActiveGroup && item.subItems && (
-                      <motion.ul
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: "auto" }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="ml-4 mt-1 space-y-1 overflow-hidden border-l border-slate-700/50 py-1"
-                      >
-                        {item.subItems.map((sub) => (
-                          <li key={sub.name}>
-                            <NavLink
-                              to={sub.path}
-                              end
-                              className={({ isActive }) =>
-                                `block w-full rounded-r-lg border-l-2 px-4 py-1.5 text-left text-xs transition-colors ${
-                                  isActive
-                                    ? "border-blue-500 bg-white/5 font-medium text-white"
-                                    : "border-transparent text-slate-400 hover:bg-white/5 hover:text-slate-200"
-                                }`
-                              }
-                            >
-                              {sub.name}
-                            </NavLink>
-                          </li>
-                        ))}
-                      </motion.ul>
-                    )}
-                  </AnimatePresence>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          title="Cerrar Sesión"
-          className="mt-auto flex w-full items-center justify-center gap-2 border-t border-slate-700/50 py-5 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-800/50 hover:text-red-400"
-        >
-          <ArrowLeftOnRectangleIcon className="h-5 w-5 shrink-0" />
-          <AnimatePresence>
-            {isExpanded && (
-              <motion.span
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: "auto" }}
-                exit={{ opacity: 0, width: 0 }}
-                className="overflow-hidden whitespace-nowrap text-sm font-semibold"
+      return (
+        <Disclosure as="div" key={item.name} defaultOpen={isParentActive}>
+          {({ open }) => (
+            <>
+              <Disclosure.Button
+                className={classNames(
+                  isParentActive
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+                  'group flex w-full items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+                )}
               >
-                Cerrar Sesión
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </button>
-      </motion.aside>
+                <item.icon
+                  className={classNames(
+                    isParentActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-500',
+                    'mr-3 h-5 w-5 flex-shrink-0 transition-colors',
+                  )}
+                  aria-hidden="true"
+                />
+                <span className="flex-1 text-left">{item.name}</span>
+                <svg
+                  className={classNames(
+                    open ? 'rotate-90 text-slate-500' : 'text-slate-400',
+                    'ml-3 h-5 w-5 flex-shrink-0 transition-transform duration-200',
+                  )}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                </svg>
+              </Disclosure.Button>
+              <Disclosure.Panel className="mt-1 space-y-1 px-4 pb-2">
+                {visibleSubItems.map((subItem) => (
+                  <NavLink
+                    key={subItem.name}
+                    to={subItem.path}
+                    className={({ isActive }) => classNames(
+                      isActive
+                        ? 'bg-blue-50/70 text-blue-700 font-semibold'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900',
+                      'block rounded-lg py-2 pl-9 pr-3 text-sm transition-colors',
+                    )}
+                  >
+                    {subItem.name}
+                  </NavLink>
+                ))}
+              </Disclosure.Panel>
+            </>
+          )}
+        </Disclosure>
+      );
+    }
 
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 md:gap-6 md:px-8">
-          <div className="flex max-w-xl flex-1 items-center gap-3">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 lg:hidden"
-            >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
-            <div className="relative flex w-full items-center">
-              <MagnifyingGlassIcon className="absolute left-4 h-5 w-5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Buscar artículos..."
-                className="w-full rounded-full border-2 border-blue-200/60 bg-transparent py-2 pl-11 pr-4 text-sm text-slate-600 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-transparent focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+    return hasAccess(item.path) && (
+      <NavLink
+        key={item.name}
+        to={item.defaultPath || item.path}
+        className={({ isActive }) => classNames(
+          isActive || location.pathname.startsWith(item.path)
+            ? 'bg-blue-50 text-blue-700'
+            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900',
+          'group flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors',
+        )}
+      >
+        <item.icon
+          className={classNames(
+            location.pathname.startsWith(item.path) ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-500',
+            'mr-3 h-5 w-5 flex-shrink-0 transition-colors',
+          )}
+          aria-hidden="true"
+        />
+        {item.name}
+      </NavLink>
+    );
+  });
+
+  return (
+    <div className="min-h-full">
+      <div className="hidden border-r border-slate-200 bg-white lg:fixed lg:inset-y-0 lg:flex lg:w-72 lg:flex-col">
+        <div className="flex min-h-0 flex-1 flex-col pt-5">
+          <div className="mb-8 flex flex-shrink-0 items-center px-6">
+            <ApplicationLogo className="block h-10 w-auto fill-current text-blue-600" />
+            <span className="ml-3 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-xl font-bold text-transparent">SmartLynk</span>
           </div>
 
-          <div className="flex flex-1 items-center justify-end gap-3">
-            <NotificationPopover />
-
-            <div className="ml-1 hidden items-center rounded-full border border-slate-200 bg-slate-50 p-1 transition-colors md:flex">
-              <button
-                type="button"
-                onClick={() => setIsDarkMode(false)}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                  !isDarkMode ? "bg-white text-slate-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <SunIcon className="h-4 w-4" /> Claro
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsDarkMode(true)}
-                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                  isDarkMode ? "bg-white text-slate-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <MoonIcon className="h-4 w-4" /> Oscuro
-              </button>
-            </div>
-
-            <div className="mx-2 hidden h-8 w-px bg-slate-200 md:block" />
-
-            <div className="flex shrink-0 items-center gap-3 p-1.5 text-left">
-              <div className="hidden leading-tight sm:block">
-                <div className="text-sm font-bold text-slate-800">
-                  {user?.nombre_usuario ? user.nombre_usuario.split(" ")[0] : "Usuario"}
+          <nav className="flex-1 space-y-6 overflow-y-auto px-4 pb-4" aria-label="Sidebar">
+            {['ADMINISTRACIÓN', 'MÓDULOS', 'REPORTES'].map((section) => (
+              <div key={section}>
+                <h3 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  {section}
+                </h3>
+                <div className="space-y-1">
+                  {renderNavItems(navigation.filter((item) => item.section === section))}
                 </div>
               </div>
+            ))}
+          </nav>
+        </div>
+
+        <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50/80 p-4">
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-100 bg-white text-sm font-bold text-red-600 shadow-sm transition hover:border-red-200 hover:bg-red-50"
+          >
+            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+
+      <div className="flex h-screen flex-1 flex-col overflow-hidden lg:pl-72">
+        <div className="sticky top-0 z-10 flex h-20 flex-shrink-0 border-b border-slate-200 bg-white shadow-sm">
+          <button
+            type="button"
+            className="border-r border-slate-200 px-4 text-slate-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 lg:hidden"
+          >
+            <span className="sr-only">Abrir sidebar</span>
+            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
+          </button>
+
+          <div className="flex flex-1 items-center justify-between gap-5 px-5">
+            <div className="flex min-w-0 flex-1 items-center">
+              <form onSubmit={handleGlobalSearch} className="relative w-full max-w-2xl">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={globalSearch}
+                  onChange={(event) => setGlobalSearch(event.target.value)}
+                  className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-12 pr-4 text-sm font-medium text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-blue-300 focus:bg-white focus:ring-4 focus:ring-blue-50"
+                  placeholder="Buscar artículos, series, empleados o movimientos..."
+                />
+              </form>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-4">
+              <NotificationPopover />
+
+              <Menu as="div" className="relative">
+                <Menu.Button className="flex min-w-52 items-center border-l border-slate-200 py-2 pl-6 pr-2 text-left transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                  <span className="sr-only">Abrir menú de usuario</span>
+                  <div className="min-w-0">
+                    <p className="max-w-56 truncate text-sm font-bold text-slate-900">{userDisplayName}</p>
+                    <p className="max-w-56 truncate text-sm font-medium text-slate-500">{userDisplayRole}</p>
+                  </div>
+                </Menu.Button>
+
+                <Transition
+                  as={Fragment}
+                  enter="transition ease-out duration-100"
+                  enterFrom="transform opacity-0 scale-95"
+                  enterTo="transform opacity-100 scale-100"
+                  leave="transition ease-in duration-75"
+                  leaveFrom="transform opacity-100 scale-100"
+                  leaveTo="transform opacity-0 scale-95"
+                >
+                  <Menu.Items className="absolute right-0 mt-2 w-64 origin-top-right divide-y divide-slate-100 rounded-xl bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <div className="px-4 py-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Sesión activa</p>
+                      <p className="mt-1 truncate text-sm font-bold text-slate-900">{userDisplayName}</p>
+                      <p className="truncate text-xs font-medium text-slate-500">{user.email || userDisplayRole}</p>
+                    </div>
+                    <div className="py-1">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <button
+                            onClick={handleLogout}
+                            className={classNames(
+                              active ? 'bg-red-50' : '',
+                              'block w-full px-4 py-2 text-left text-sm font-bold text-red-600 transition-colors',
+                            )}
+                          >
+                            Cerrar sesión
+                          </button>
+                        )}
+                      </Menu.Item>
+                    </div>
+                  </Menu.Items>
+                </Transition>
+              </Menu>
             </div>
           </div>
-        </header>
-
-        <div className="flex-1 overflow-y-auto px-8 pb-8 pt-5 scrollbar-thin scrollbar-thumb-slate-300">
-          <div key={location.pathname} className="w-full">
-            <Outlet />
-          </div>
         </div>
-      </main>
+
+        <main className="relative flex-1 overflow-y-auto bg-slate-50/50">
+          <div className="py-8">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 md:px-8">
+              <Outlet />
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

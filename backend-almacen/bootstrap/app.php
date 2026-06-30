@@ -4,6 +4,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -13,9 +14,16 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (Schedule $schedule): void {
+        $schedule->command('inventario:verificar-consistencia')->weekly();
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         // Habilitar CORS para todas las rutas de API usando la configuración de config/cors.php
         $middleware->statefulApi();
+        $middleware->alias([
+            'check.role'  => \App\Http\Middleware\CheckRole::class,
+            'kiosco.auth' => \App\Http\Middleware\KioscoAuth::class,
+        ]);
         $middleware->validateCsrfTokens(except: [
             'api/*',
         ]);

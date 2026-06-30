@@ -139,7 +139,7 @@ function AssignmentModal({ open, onClose, empleados }) {
       return;
     }
 
-    const destino = tipo === "resguardo" ? "/almacen/recepcion" : "/mostrador/resguardos";
+    const destino = tipo === "resguardo" ? "/activos/recepcion" : "/mostrador/resguardos";
     navigate(`${destino}?empleado_id=${empleadoId}`);
     onClose();
   };

@@ -455,7 +455,7 @@ export default function Dashboard() {
             <Panel className="p-6">
               <h2 className="text-lg font-bold text-slate-900">Acciones Rapidas</h2>
               <div className="mt-5 grid gap-3">
-                <Link to="/almacen/recepcion" className="flex items-center gap-3 rounded-xl bg-blue-50 px-4 py-3 font-bold text-blue-700 transition-colors hover:bg-blue-100">
+                <Link to="/activos/recepcion" className="flex items-center gap-3 rounded-xl bg-blue-50 px-4 py-3 font-bold text-blue-700 transition-colors hover:bg-blue-100">
                   <ArrowDownToLine size={20} /> Registrar Entrada
                 </Link>
                 <Link to="/mostrador/terminal" className="flex items-center gap-3 rounded-xl bg-rose-50 px-4 py-3 font-bold text-rose-700 transition-colors hover:bg-rose-100">
@@ -520,7 +520,7 @@ export default function Dashboard() {
               <button onClick={() => setIsAlertModalOpen(false)} className="px-5 py-2 text-sm font-bold text-slate-500 transition-colors hover:text-slate-800">
                 Cerrar
               </button>
-              <Link to="/almacen/entrada" className="rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-red-700">
+              <Link to="/activos/recepcion" className="rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-red-700">
                 Crear Orden de Compra
               </Link>
             </div>

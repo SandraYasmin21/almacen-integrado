@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { getToken, setSession } from '@/lib/auth';
 
-// ─── Iconos SVG (Heroicons outline) ──────────────────────────────────────────
+// â”€â”€â”€ Iconos SVG (Heroicons outline) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const IconMail = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -47,7 +47,7 @@ const IconShield = () => (
     </svg>
 );
 
-// ─── Slides del panel izquierdo con textos dinámicos ──────────────────────────
+// â”€â”€â”€ Slides del panel izquierdo con textos dinÃ¡micos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SLIDES = [
     {
         image: 'https://images.unsplash.com/photo-1553413077-190dd305871c?w=1200&q=80',
@@ -57,21 +57,21 @@ const SLIDES = [
     {
         image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=1200&q=80',
         title: 'Monitorea tu flotilla en tiempo real',
-        subtitle: 'Bitácoras, mantenimientos y kilometraje en un solo lugar.',
+        subtitle: 'Bitacoras, mantenimientos y kilometraje en un solo lugar.',
     },
     {
         image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&q=80',
         title: 'Operaciones sin interrupciones',
-        subtitle: 'Tecnología robusta y segura para empresas que no pueden parar.',
+        subtitle: 'Tecnologia robusta y segura para empresas que no pueden parar.',
     },
     {
         image: 'https://images.unsplash.com/photo-1565891741441-64926e441838?w=1200&q=80',
-        title: 'Reportes y estadísticas al instante',
+        title: 'Reportes y estadisticas al instante',
         subtitle: 'Toma decisiones basadas en datos reales.',
     },
 ];
 
-// ─── Partículas flotantes decorativas ────────────────────────────────────────
+// â”€â”€â”€ PartÃ­culas flotantes decorativas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FloatingParticle({ delay, duration, x, y, size, opacity }) {
     return (
         <motion.div
@@ -99,7 +99,7 @@ function FloatingParticle({ delay, duration, x, y, size, opacity }) {
     );
 }
 
-// ─── Panel izquierdo con slider Ken Burns ────────────────────────────────────
+// â”€â”€â”€ Panel izquierdo con slider Ken Burns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function LeftPanel() {
     const [current, setCurrent] = useState(0);
     const [prev, setPrev] = useState(null);
@@ -139,12 +139,12 @@ function LeftPanel() {
             {/* Overlay degradado azul profundo */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#0d1b3e]/90 via-[#1a2f70]/80 to-[#0a1628]/85" />
 
-            {/* Partículas flotantes */}
+            {/* PartÃ­culas flotantes */}
             {particles.map((p, i) => (
                 <FloatingParticle key={i} {...p} />
             ))}
 
-            {/* Patrón de hexágonos decorativos (brand SmartLynk) */}
+            {/* PatrÃ³n de hexÃ¡gonos decorativos (brand SmartLynk) */}
             <div className="absolute inset-0 opacity-5"
                 style={{
                     backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='52' viewBox='0 0 60 52' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L60 17.3v17.4L30 52 0 34.7V17.3L30 0z' fill='none' stroke='%2360a5fa' stroke-width='1'/%3E%3C/svg%3E")`,
@@ -167,7 +167,7 @@ function LeftPanel() {
                     />
                 </motion.div>
 
-                {/* Texto dinámico del slide */}
+                {/* Texto dinÃ¡mico del slide */}
                 <div className="mb-12">
                     <AnimatePresence mode="wait">
                         <motion.div
@@ -208,7 +208,7 @@ function LeftPanel() {
     );
 }
 
-// ─── Input con micro-interacciones ───────────────────────────────────────────
+// â”€â”€â”€ Input con micro-interacciones â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AnimatedInput({ id, label, type: initialType, placeholder, icon, value, onChange, error }) {
     const [focused, setFocused] = useState(false);
     const [showPass, setShowPass] = useState(false);
@@ -249,10 +249,10 @@ function AnimatedInput({ id, label, type: initialType, placeholder, icon, value,
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
                     className="flex-1 bg-transparent py-4 pr-4 text-white placeholder-slate-500 outline-none text-sm"
-                    autoComplete={isPassword ? 'current-password' : 'email'}
+                    autoComplete={isPassword ? 'current-password' : 'username'}
                 />
 
-                {/* Toggle de contraseña */}
+                {/* Toggle de contraseÃ±a */}
                 {isPassword && (
                     <button
                         type="button"
@@ -279,9 +279,9 @@ function AnimatedInput({ id, label, type: initialType, placeholder, icon, value,
     );
 }
 
-// ─── Panel derecho: Formulario ────────────────────────────────────────────────
+// â”€â”€â”€ Panel derecho: Formulario â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function RightPanel() {
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
@@ -300,7 +300,7 @@ function RightPanel() {
         setLoading(true);
 
         try {
-            const res = await axios.post('/api/auth/login', { email, password }, {
+            const res = await axios.post('/api/auth/login', { username, password }, {
                 headers: { Accept: 'application/json' },
             });
             setSession(res.data.token, res.data.usuario);
@@ -310,13 +310,21 @@ function RightPanel() {
             }, 800);
         } catch (err) {
             setLoading(false);
-            // Disparar animación de shake
+            // Disparar animacion de shake
             setShakeKey((k) => k + 1);
 
-            if (err.response.status === 422) {
+            if (!err.response) {
+                setErrors({ general: 'No se pudo conectar al servidor. Verifica tu conexion.' });
+            } else if (err.response.status === 422) {
                 const serverErrors = err.response.data.errors || {};
                 setErrors({
-                    email: serverErrors.email?.[0] || null,
+                    username: serverErrors.username?.[0] || null,
+                    general: 'Las credenciales son incorrectas.',
+                });
+            } else if (err.response.status === 401) {
+                const serverErrors = err.response.data.errors || {};
+                setErrors({
+                    username: serverErrors.username?.[0] || null,
                     general: 'Las credenciales son incorrectas.',
                 });
             } else if (err.response.status === 429) {
@@ -324,7 +332,7 @@ function RightPanel() {
             } else if (err.response.status === 403 && err.response.data.requiere_cambio) {
                 setErrors({ general: err.response.data.mensaje || 'Debes actualizar tu contrasena antes de continuar.' });
             } else {
-                setErrors({ general: 'Error de conexión. Intenta de nuevo.' });
+                setErrors({ general: 'Error de conexion. Intenta de nuevo.' });
             }
         }
     };
@@ -340,7 +348,7 @@ function RightPanel() {
 
     return (
         <div className="flex w-full lg:w-1/2 items-center justify-center bg-[#0a1628] p-8">
-            {/* Fondo de partículas en móvil */}
+            {/* Fondo de partÃ­culas en mÃ³vil */}
             <div className="absolute inset-0 lg:hidden overflow-hidden pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-64 h-64 rounded-full bg-blue-600/20 blur-3xl" />
                 <div className="absolute bottom-1/4 right-1/4 w-48 h-48 rounded-full bg-blue-400/15 blur-3xl" />
@@ -363,7 +371,7 @@ function RightPanel() {
                         background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)',
                     }}
                 >
-                    {/* Logo centrado (visible solo en móvil) */}
+                    {/* Logo centrado (visible solo en mÃ³vil) */}
                     <div className="flex justify-center mb-6 lg:hidden">
                         <img
                             src="https://smartlynk.com.mx/uploads/settings/1755284902_47091f74f5c180651419.webp"
@@ -404,7 +412,7 @@ function RightPanel() {
                         )}
                     </AnimatePresence>
 
-                    {/* Éxito */}
+                    {/* Ã‰xito */}
                     <AnimatePresence>
                         {success && (
                             <motion.div
@@ -414,7 +422,7 @@ function RightPanel() {
                             >
                                 <span className="text-green-400 flex items-center gap-2 text-sm">
                                     <IconCheckCircle />
-                                    Sesión iniciada. Redirigiendo...
+                                    Sesion iniciada. Redirigiendo...
                                 </span>
                             </motion.div>
                         )}
@@ -423,28 +431,28 @@ function RightPanel() {
                     {/* Formulario */}
                     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
                         <AnimatedInput
-                            id="email"
-                            label="Correo electrónico"
-                            type="email"
-                            placeholder="usuario@smartlynk.com.mx"
+                            id="username"
+                            label="Usuario"
+                            type="text"
+                            placeholder="nombre de usuario"
                             icon={<IconMail />}
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            error={errors.email}
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            error={errors.username}
                         />
 
                         <AnimatedInput
                             id="password"
                             label="Contraseña"
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="********"
                             icon={<IconLock />}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             error={errors.password}
                         />
 
-                        {/* Botón de submit */}
+                        {/* BotÃ³n de submit */}
                         <motion.button
                             type="submit"
                             disabled={loading || success}
@@ -457,7 +465,7 @@ function RightPanel() {
                                     : 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%)',
                             }}
                         >
-                            {/* Brillo animado en el botón */}
+                            {/* Brillo animado en el botÃ³n */}
                             {!loading && !success && (
                                 <motion.div
                                     className="absolute inset-0 rounded-xl opacity-0 hover:opacity-100"
@@ -480,7 +488,7 @@ function RightPanel() {
                                 ) : success ? (
                                     <span className="flex items-center gap-2">
                                         <IconCheckCircle />
-                                        Sesión iniciada
+                                        Sesion iniciada
                                     </span>
                                 ) : (
                                     'Ingresar al sistema'
@@ -496,12 +504,12 @@ function RightPanel() {
                             Protegido por
                         </span>
                         <span className="text-blue-400 text-xs font-semibold">SmartLynk Security</span>
-                        <span className="text-slate-600 text-xs">•</span>
+                        <span className="text-slate-600 text-xs">|</span>
                         <span className="text-slate-500 text-xs">Laravel Sanctum</span>
                     </div>
                 </motion.div>
 
-                {/* Decoración exterior de la tarjeta */}
+                {/* DecoraciÃ³n exterior de la tarjeta */}
                 <div
                     className="absolute -inset-1 rounded-3xl opacity-20 -z-10 blur-xl"
                     style={{
@@ -513,7 +521,7 @@ function RightPanel() {
     );
 }
 
-// ─── Página principal ─────────────────────────────────────────────────────────
+// â”€â”€â”€ PÃ¡gina principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function LoginPage() {
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-[#0a1628]">
@@ -522,3 +530,4 @@ export default function LoginPage() {
         </div>
     );
 }
+

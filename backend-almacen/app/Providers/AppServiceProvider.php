@@ -2,28 +2,42 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
+use App\Models\CatalogoArticulo;
+use App\Models\CatalogoConfigurable;
 use App\Models\Empleado;
+use App\Models\InventarioSerie;
+use App\Models\MovimientoInventario;
+use App\Models\ProyectoPresupuesto;
+use App\Models\ProyectoRecurso;
+use App\Models\StockGeneral;
+use App\Models\Ubicacion;
+use App\Models\Usuario;
+use App\Models\VehiculoFlotilla;
+use App\Observers\AuditableObserver;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
         //
     }
 
-    /**
-     * Bootstrap any application services.
-     */
     public function boot(): void
     {
-        // Generamos el número de gafete automáticamente al crear un Empleado
+        CatalogoArticulo::observe(AuditableObserver::class);
+        CatalogoConfigurable::observe(AuditableObserver::class);
+        InventarioSerie::observe(AuditableObserver::class);
+        MovimientoInventario::observe(AuditableObserver::class);
+        ProyectoPresupuesto::observe(AuditableObserver::class);
+        ProyectoRecurso::observe(AuditableObserver::class);
+        StockGeneral::observe(AuditableObserver::class);
+        Ubicacion::observe(AuditableObserver::class);
+        Usuario::observe(AuditableObserver::class);
+        VehiculoFlotilla::observe(AuditableObserver::class);
+
         Empleado::creating(function ($empleado) {
             if (empty($empleado->numero_gafete)) {
-                // Puedes cambiar el formato aquí. Ej: EMP-2026-64A1B2
                 $empleado->numero_gafete = 'EMP-' . date('Y') . '-' . strtoupper(substr(uniqid(), -6));
             }
         });

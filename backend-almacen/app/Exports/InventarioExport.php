@@ -119,7 +119,7 @@ class InventarioExport implements FromCollection, WithHeadings, WithStyles, With
         return DB::table('stock_general as sg')
             ->join('catalogo_articulos as ca', 'sg.articulo_id', '=', 'ca.id')
             ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
-            ->where('ca.activo', true)
+            ->whereNull('ca.deleted_at')
             ->select(
                 'ca.nombre',
                 'ca.modelo',

@@ -123,6 +123,7 @@ export default function Entrada() {
   const [csvWarnings, setCsvWarnings] = useState([]);
   const [csvCatalogo, setCsvCatalogo] = useState([]);
   const [csvInventario, setCsvInventario] = useState([]);
+  const [csvFile, setCsvFile] = useState(null);
   const [isCsvUploading, setIsCsvUploading] = useState(false);
 
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
@@ -258,7 +259,7 @@ export default function Entrada() {
       // --- REDIRECCIÓN AL INVENTARIO ---
       // Cambia '/inventario' por la ruta real que manejes en tu frontend
       setTimeout(() => {
-          navigate('/almacen'); 
+          navigate('/activos/inventario'); 
       }, 500); // Un pequeño retraso de medio segundo permite que el usuario vea el Toast de éxito
 
     } catch (err) {
@@ -268,9 +269,38 @@ export default function Entrada() {
     }
   };
   // Función para leer y parsear el archivo CSV
+  const descargarPlantilla = async () => {
+    try {
+      const response = await fetch(`${API}/api/almacen/entrada/plantilla`, { headers: authHeaders() });
+      if (!response.ok) throw new Error("No se pudo descargar la plantilla.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "Plantilla_Ingreso_Inventario.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(error.message || "Error al descargar plantilla");
+    }
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    setCsvFile(file);
+    setCsvErrors([]);
+    setCsvWarnings([`Archivo seleccionado: ${file.name}. La validacion atomica se ejecutara en el servidor.`]);
+    setCsvCatalogo([]);
+    setCsvInventario([{ fila: "-", nombre: file.name, cantidad: "-", serie: "-", ubicacion: "-" }]);
+  };
+
+  /*
+  const handleFileUploadLegacyDisabled = () => {
+    return;
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -307,6 +337,7 @@ export default function Entrada() {
     };
     reader.readAsText(file);
   };
+  */
 
   // Función para validar la lógica del catálogo e inventario
   const analyzeData = (data) => {
@@ -374,29 +405,35 @@ export default function Entrada() {
 
   // Enviar los datos estructurados al Backend
   const confirmarCSV = async () => {
+    if (!csvFile) {
+      toast.error("Selecciona una plantilla Excel o CSV.");
+      return;
+    }
+
     setIsCsvUploading(true);
     try {
-      // Enviamos el Proveedor si fue seleccionado en el formulario general
-      const payload = {
-        proveedor_id: form.proveedor_id || null, 
-        notas: "Ingreso masivo por plantilla CSV",
-        lineas: csvInventario
-      };
+      const payload = new FormData();
+      payload.append("archivo", csvFile);
+      if (form.proveedor_id) payload.append("proveedor_id", form.proveedor_id);
+      payload.append("notas", form.notas || "Ingreso masivo por plantilla Excel/CSV");
 
-      const response = await fetch(`${API}/api/almacen/entrada/importar-csv`, {
+      const response = await fetch(`${API}/api/almacen/entrada/importar`, {
         method: "POST",
         headers: authHeaders(),
-        body: JSON.stringify(payload)
+        body: payload
       });
 
       const data = await response.json();
       if (!response.ok || !data.success) {
+        setCsvErrors(data.errores || [data.message || "Error al procesar la plantilla en el servidor."]);
+        setCsvWarnings((data.ignorados || []).map((item) => `Fila ${item.fila}: ${item.motivo}`));
         throw new Error(data.message || "Error al procesar la plantilla en el servidor.");
       }
 
-      toast.success("Inventario ingresado correctamente desde CSV");
+      setCsvWarnings((data.ignorados || []).map((item) => `Fila ${item.fila}: ${item.motivo}`));
+      toast.success("Inventario ingresado correctamente desde plantilla");
       setCsvModalOpen(false);
-      navigate("/almacen"); 
+      navigate("/activos/inventario"); 
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -415,13 +452,13 @@ export default function Entrada() {
       <button 
            type="button" 
            onClick={() => {
-              setCsvErrors([]); setCsvWarnings([]); setCsvCatalogo([]); setCsvInventario([]);
+              setCsvErrors([]); setCsvWarnings([]); setCsvCatalogo([]); setCsvInventario([]); setCsvFile(null);
               setCsvModalOpen(true);
            }}
            className="inline-flex items-center gap-2 mb-4 rounded-xl bg-emerald-100 text-emerald-700 px-5 py-2.5 text-sm font-bold shadow-sm transition hover:bg-emerald-200"
          >
            <UploadCloud className="w-5 h-5" />
-           Cargar desde Plantilla (CSV)
+           Cargar desde Plantilla (Excel/CSV)
       </button>
 
       <form onSubmit={submit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -598,7 +635,7 @@ export default function Entrada() {
               >
                 {loading ? "Registrando Entrada..." : "Procesar Entrada"}
               </button>
-              <Link to="/almacen" className="w-full py-3 text-center bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border border-slate-200 rounded-xl transition-colors">
+              <Link to="/activos/inventario" className="w-full py-3 text-center bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold border border-slate-200 rounded-xl transition-colors">
                 Cancelar
               </Link>
             </div>
@@ -606,7 +643,7 @@ export default function Entrada() {
         </div>
       </form>
       
-      {result && <ResultModal result={result} onClose={() => navigate("/almacen")} />}
+      {result && <ResultModal result={result} onClose={() => navigate("/activos/inventario")} />}
         {/* --- MODAL DE CARGA POR PLANTILLA (CSV) --- */}
       {csvModalOpen && (
         <PremiumModal className="max-w-4xl" onBackdropClick={() => !isCsvUploading && setCsvModalOpen(false)}>
@@ -626,13 +663,20 @@ export default function Entrada() {
             <div className="flex-1 overflow-y-auto space-y-6 pr-2">
               {/* Zona para subir el archivo */}
               <div className="rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50 p-6 text-center">
+                  <button
+                    type="button"
+                    onClick={descargarPlantilla}
+                    className="mb-4 inline-flex items-center justify-center rounded-full bg-white px-5 py-2 text-sm font-bold text-emerald-700 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-100"
+                  >
+                    Descargar plantilla oficial
+                  </button>
                   <input 
                     type="file" 
-                    accept=".csv" 
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleFileUpload} 
                     className="block w-full text-sm text-slate-600 file:mr-4 file:py-2.5 file:px-5 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-emerald-600 file:text-white hover:file:bg-emerald-700 cursor-pointer" 
                   />
-                  <p className="text-xs text-slate-500 mt-3 font-medium">Sube el archivo Excel (.csv) descargado previamente.</p>
+                  <p className="text-xs text-slate-500 mt-3 font-medium">Sube la plantilla oficial en formato Excel (.xlsx) o CSV.</p>
               </div>
 
               {/* Errores (Bloquean el envío) */}
@@ -739,7 +783,7 @@ export default function Entrada() {
               {/* Botón deshabilitado si hay errores o no hay datos */}
               <button 
                 onClick={confirmarCSV} 
-                disabled={csvInventario.length === 0 || csvErrors.length > 0 || isCsvUploading}
+                disabled={!csvFile || csvErrors.length > 0 || isCsvUploading}
                 className="px-6 py-2.5 rounded-full bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isCsvUploading ? "Procesando en servidor..." : "Confirmar e Ingresar"}

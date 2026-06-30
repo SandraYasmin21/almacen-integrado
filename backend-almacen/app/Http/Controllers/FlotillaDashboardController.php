@@ -21,34 +21,30 @@ class FlotillaDashboardController extends Controller
     public function index(Request $request): JsonResponse
     {
         $request->validate([
-            'anio' => 'nullable|integer|min:2000|max:2099',
-            'mes'  => 'nullable|integer|min:1|max:12',
-            'dia'  => 'nullable|integer|min:1|max:31',
+            'fecha_inicio' => 'nullable|date',
+            'fecha_fin'    => 'nullable|date|after_or_equal:fecha_inicio',
         ]);
 
-        $anio = $request->filled('anio') ? (int) $request->anio : null;
-        $mes  = $request->filled('mes')  ? (int) $request->mes  : null;
-        $dia  = $request->filled('dia')  ? (int) $request->dia  : null;
+        $fechaInicio = $request->input('fecha_inicio');
+        $fechaFin    = $request->input('fecha_fin');
 
         // ── Filtro de rango de fecha para registros ──────────────────────
         $registrosQuery = RegistroVehicular::query();
         $gastosQuery    = GastoExtraVehiculo::query();
 
-        if ($anio) {
-            $registrosQuery->whereYear('fecha', $anio);
-            $gastosQuery->whereYear('fecha', $anio);
-        }
-        if ($mes) {
-            $registrosQuery->whereMonth('fecha', $mes);
-            $gastosQuery->whereMonth('fecha', $mes);
-        }
-        if ($dia) {
-            $registrosQuery->whereDay('fecha', $dia);
-            $gastosQuery->whereDay('fecha', $dia);
+        if ($fechaInicio && $fechaFin) {
+            $registrosQuery->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+            $gastosQuery->whereBetween('fecha', [$fechaInicio, $fechaFin]);
+        } elseif ($fechaInicio) {
+            $registrosQuery->where('fecha', '>=', $fechaInicio);
+            $gastosQuery->where('fecha', '>=', $fechaInicio);
+        } elseif ($fechaFin) {
+            $registrosQuery->where('fecha', '<=', $fechaFin);
+            $gastosQuery->where('fecha', '<=', $fechaFin);
         }
 
         // ── 1. Total de vehículos activos ─────────────────────────────────
-        $totalVehiculosActivos = VehiculoFlotilla::where('estado', 'ACTIVO')->count();
+        $totalVehiculosActivos = VehiculoFlotilla::whereIn('estado', ['ACTIVO', 'DISPONIBLE', 'ASIGNADO'])->count();
 
         // ── 2. Total de mantenimientos en el período ──────────────────────
         $totalMantenimientos = (clone $registrosQuery)->count();
@@ -99,6 +95,42 @@ class FlotillaDashboardController extends Controller
             ->groupBy('tipo')
             ->get();
 
+        $costoPorVehiculo = VehiculoFlotilla::query()
+            ->whereIn('estado', ['ACTIVO', 'DISPONIBLE', 'ASIGNADO', 'EN_MANTENIMIENTO'])
+            ->get(['id', 'nombre', 'placa', 'placas', 'numero'])
+            ->map(function (VehiculoFlotilla $vehiculo) use ($anio, $mes, $dia) {
+                $mantenimientos = RegistroVehicular::where('vehiculo_id', $vehiculo->id);
+                $gastos = GastoExtraVehiculo::where('vehiculo_id', $vehiculo->id);
+
+                if ($anio) {
+                    $mantenimientos->whereYear('fecha', $anio);
+                    $gastos->whereYear('fecha', $anio);
+                }
+                if ($mes) {
+                    $mantenimientos->whereMonth('fecha', $mes);
+                    $gastos->whereMonth('fecha', $mes);
+                }
+                if ($dia) {
+                    $mantenimientos->whereDay('fecha', $dia);
+                    $gastos->whereDay('fecha', $dia);
+                }
+
+                $costoMantenimientos = (float) $mantenimientos->sum('costo');
+                $costoGastosExtra = (float) $gastos->sum('costo');
+
+                return [
+                    'vehiculo_id' => $vehiculo->id,
+                    'nombre' => $vehiculo->nombre,
+                    'placas' => $vehiculo->placas ?? $vehiculo->placa,
+                    'numero' => $vehiculo->numero,
+                    'costo_mantenimientos' => round($costoMantenimientos, 2),
+                    'costo_gastos_extra' => round($costoGastosExtra, 2),
+                    'costo_total' => round($costoMantenimientos + $costoGastosExtra, 2),
+                ];
+            })
+            ->sortByDesc('costo_total')
+            ->values();
+
         return response()->json([
             'filtro_aplicado' => [
                 'anio' => $anio,
@@ -115,6 +147,7 @@ class FlotillaDashboardController extends Controller
             'mantenimientos_por_tipo'              => $porTipo,
             'vehiculos_mas_mantenimientos_preventivos'  => $masPreventivos,
             'vehiculos_mas_mantenimientos_correctivos'  => $masCorrectivos,
+            'costo_por_vehiculo' => $costoPorVehiculo,
         ]);
     }
 }

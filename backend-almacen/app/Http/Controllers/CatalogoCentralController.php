@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\GenericExport;
+use App\Models\CatalogoArticulo;
 
 class CatalogoCentralController extends Controller
 {
@@ -101,6 +102,8 @@ class CatalogoCentralController extends Controller
 
     public function storeArticulo(Request $request): JsonResponse
     {
+        $this->authorize('create', CatalogoArticulo::class);
+
         $validated = $this->validateArticulo($request);
 
         $id = DB::transaction(function () use ($validated, $request) {
@@ -109,7 +112,7 @@ class CatalogoCentralController extends Controller
             $data = [
                 'subcategoria_id' => $subcategoriaId,
                 'nombre' => $this->clean($validated['nombre']),
-                'marca' => $this->nullableClean($request->input('marca')),
+                'marca_fabricante' => $this->nullableClean($request->input('marca')),
                 'modelo' => $this->nullableClean($validated['modelo'] ?? null),
                 'requiere_serie' => (bool) ($validated['requiere_serie'] ?? false),
                 'es_consumible' => (bool) ($validated['es_consumible'] ?? false),
@@ -121,6 +124,10 @@ class CatalogoCentralController extends Controller
 
             if (Schema::hasColumn('catalogo_articulos', 'tipo_articulo')) {
                 $data['tipo_articulo'] = $this->clean($validated['tipo_articulo'] ?? 'herramienta');
+            }
+
+            if (Schema::hasColumn('catalogo_articulos', 'tipo_control')) {
+                $data['tipo_control'] = strtoupper($this->clean($validated['tipo_control'] ?? 'HERRAMIENTA'));
             }
 
             if (Schema::hasColumn('catalogo_articulos', 'sku_maestro')) {
@@ -135,6 +142,9 @@ class CatalogoCentralController extends Controller
 
     public function updateArticulo(Request $request, int $id): JsonResponse
     {
+        $articulo = CatalogoArticulo::query()->findOrFail($id);
+        $this->authorize('update', $articulo);
+
         $validated = $this->validateArticulo($request, $id, true);
 
         DB::transaction(function () use ($validated, $id, $request) {
@@ -160,7 +170,7 @@ class CatalogoCentralController extends Controller
             }
 
             if ($request->has('marca')) {
-                $data['marca'] = $this->nullableClean($request->input('marca'));
+                $data['marca_fabricante'] = $this->nullableClean($request->input('marca'));
             }
 
             if (array_key_exists('modelo', $validated)) {
@@ -175,6 +185,10 @@ class CatalogoCentralController extends Controller
 
             if (Schema::hasColumn('catalogo_articulos', 'tipo_articulo') && array_key_exists('tipo_articulo', $validated)) {
                 $data['tipo_articulo'] = $this->clean($validated['tipo_articulo']);
+            }
+
+            if (Schema::hasColumn('catalogo_articulos', 'tipo_control') && array_key_exists('tipo_control', $validated)) {
+                $data['tipo_control'] = strtoupper($this->clean($validated['tipo_control']));
             }
 
             if (Schema::hasColumn('catalogo_articulos', 'sku_maestro') && !empty($validated['regenerar_sku'])) {
@@ -338,6 +352,9 @@ class CatalogoCentralController extends Controller
 
     public function deleteArticulo(int $id): JsonResponse
     {
+        $articuloModel = CatalogoArticulo::query()->findOrFail($id);
+        $this->authorize('delete', $articuloModel);
+
         $articulo = DB::table('catalogo_articulos')->where('id', $id)->whereNull('deleted_at')->first();
 
         if (!$articulo) {
@@ -396,13 +413,14 @@ class CatalogoCentralController extends Controller
             ->select(
                 'ca.id',
                 'ca.nombre',
-                'ca.marca',
+                'ca.marca_fabricante as marca',
                 'ca.modelo',
                 'ca.subcategoria_id',
                 'ca.unidad_medida',
                 'ca.stock_minimo',
                 'ca.requiere_serie',
                 'ca.es_consumible',
+                DB::raw(Schema::hasColumn('catalogo_articulos', 'tipo_control') ? 'ca.tipo_control' : "'HERRAMIENTA' as tipo_control"),
                 DB::raw($this->articleTypeExpression() . ' as tipo_articulo'),
                 DB::raw($this->masterSkuExpression() . ' as sku_maestro'),
                 'sc.nombre as subcategoria',
@@ -420,8 +438,9 @@ class CatalogoCentralController extends Controller
     private function validateArticulo(Request $request, ?int $id = null, bool $partial = false): array
     {
         $required = $partial ? 'sometimes' : 'required';
+        $tipoControl = strtoupper((string) $request->input('tipo_control', 'HERRAMIENTA'));
 
-        return $request->validate([
+        $validated = $request->validate([
             // Agregamos la regla Rule::unique ignorando los soft deletes
             'nombre' => [
                 $required, 
@@ -433,13 +452,26 @@ class CatalogoCentralController extends Controller
             'subcategoria_id' => ['nullable', 'integer', Rule::exists('subcategorias', 'id')->whereNull('deleted_at')],
             'nueva_categoria' => ['nullable', 'string', 'max:150'],
             'nueva_subcategoria' => ['nullable', 'string', 'max:150'],
-            'unidad_medida' => ['nullable', 'string', 'max:20'],
+            'unidad_medida' => [Rule::requiredIf($tipoControl === CatalogoArticulo::TIPO_CONTROL_MATERIAL), 'nullable', 'string', 'max:20'],
             'stock_minimo' => ['nullable', 'numeric', 'min:0'],
-            'requiere_serie' => ['nullable', 'boolean'],
+            'requiere_serie' => [Rule::requiredIf($tipoControl === CatalogoArticulo::TIPO_CONTROL_ACTIVO), 'nullable', 'boolean'],
             'es_consumible' => ['nullable', 'boolean'],
+            'tipo_control' => ['nullable', Rule::in(CatalogoArticulo::TIPOS_CONTROL)],
             'tipo_articulo' => ['nullable', 'in:venta,herramienta,mixto'],
             'regenerar_sku' => ['nullable', 'boolean'],
         ]);
+
+        if (($validated['tipo_control'] ?? null) === CatalogoArticulo::TIPO_CONTROL_ACTIVO) {
+            $validated['requiere_serie'] = true;
+            $validated['es_consumible'] = false;
+        }
+
+        if (($validated['tipo_control'] ?? null) === CatalogoArticulo::TIPO_CONTROL_MATERIAL) {
+            $validated['requiere_serie'] = false;
+            $validated['es_consumible'] = true;
+        }
+
+        return $validated;
     }
 
     private function articleTypeExpression(): string

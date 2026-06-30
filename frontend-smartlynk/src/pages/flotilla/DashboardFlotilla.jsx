@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CalendarIcon } from '@heroicons/react/24/outline';
 import { format } from 'date-fns';
@@ -13,40 +13,71 @@ export default function DashboardFlotilla() {
     });
     const [isLoading, setIsLoading] = useState(false);
     const [stats, setStats] = useState({
-        totalVehiculos: 12,
-        totalMantenimientos: 28,
-        costoMantenimientos: 38200,
-        gastosExtra: 12450,
-        preventivos: { percent: 57, count: 16 },
-        correctivos: { percent: 29, count: 8 },
-        lecturas: { percent: 14, count: 4 }
+        totalVehiculos: 0,
+        totalMantenimientos: 0,
+        costoMantenimientos: 0,
+        gastosExtra: 0,
+        preventivos: { percent: 0, count: 0 },
+        correctivos: { percent: 0, count: 0 },
+        lecturas: { percent: 0, count: 0 },
+        masPreventivos: [],
+        masCorrectivos: []
     });
 
-    const handleApplyFilter = () => {
+    useEffect(() => {
+        handleApplyFilter();
+    }, []);
+
+    const handleApplyFilter = async () => {
         if (!date.from) return;
         
         setIsLoading(true);
-        // Simulando peticion GET /api/flotilla/dashboard
-        setTimeout(() => {
-            const nuevosMant = Math.floor(Math.random() * 30) + 5;
-            const nuevoCosto = nuevosMant * 1350 + Math.floor(Math.random() * 2000);
-            const nuevosGastos = Math.floor(Math.random() * 10000) + 1000;
-            
-            const pCount = Math.floor(nuevosMant * 0.6);
-            const cCount = Math.floor(nuevosMant * 0.3);
-            const lCount = nuevosMant - pCount - cCount;
+        try {
+            const token = localStorage.getItem('auth_token');
+            const queryParams = new URLSearchParams();
+            queryParams.append('fecha_inicio', format(date.from, 'yyyy-MM-dd'));
+            if (date.to) queryParams.append('fecha_fin', format(date.to, 'yyyy-MM-dd'));
 
-            setStats({
-                totalVehiculos: 12,
-                totalMantenimientos: nuevosMant,
-                costoMantenimientos: nuevoCosto,
-                gastosExtra: nuevosGastos,
-                preventivos: { percent: Math.round((pCount / nuevosMant) * 100) || 0, count: pCount },
-                correctivos: { percent: Math.round((cCount / nuevosMant) * 100) || 0, count: cCount },
-                lecturas: { percent: Math.round((lCount / nuevosMant) * 100) || 0, count: lCount }
+            const response = await fetch(`/api/flotilla/dashboard?${queryParams.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
             });
+
+            if (response.ok) {
+                const data = await response.json();
+                const res = data.resumen || {};
+                const porTipo = data.mantenimientos_por_tipo || [];
+                
+                const prev = porTipo.find(t => t.tipo === 'preventivo')?.total || 0;
+                const corr = porTipo.find(t => t.tipo === 'correctivo')?.total || 0;
+                const lec = porTipo.find(t => t.tipo === 'lectura')?.total || 0;
+                const totalM = prev + corr + lec;
+                
+                setStats({
+                    totalVehiculos: res.total_vehiculos_activos || 0,
+                    totalMantenimientos: res.total_mantenimientos || 0,
+                    costoMantenimientos: res.costo_total_mantenimientos || 0,
+                    gastosExtra: res.costo_total_gastos_extra || 0,
+                    preventivos: { 
+                        percent: totalM ? Math.round((prev/totalM)*100) : 0, 
+                        count: prev 
+                    },
+                    correctivos: { 
+                        percent: totalM ? Math.round((corr/totalM)*100) : 0, 
+                        count: corr 
+                    },
+                    lecturas: { 
+                        percent: totalM ? Math.round((lec/totalM)*100) : 0, 
+                        count: lec 
+                    },
+                    masPreventivos: data.vehiculos_mas_mantenimientos_preventivos || [],
+                    masCorrectivos: data.vehiculos_mas_mantenimientos_correctivos || []
+                });
+            }
+        } catch (error) {
+            console.error("Error fetching dashboard stats", error);
+        } finally {
             setIsLoading(false);
-        }, 600); // 600ms de carga simulada
+        }
     };
 
     const gastoTotalGeneral = stats.costoMantenimientos + stats.gastosExtra;
@@ -150,54 +181,27 @@ export default function DashboardFlotilla() {
                     <h3 className="font-bold text-slate-800 mb-6">Top 5 - Más mantenimientos preventivos</h3>
                     
                     <div className="space-y-3">
-                        <div className="flex items-center gap-3 bg-emerald-50/50 text-emerald-800 font-semibold text-sm px-4 py-3 rounded-xl border border-emerald-100">
-                            <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shrink-0">1</div>
-                            <span>Ranger Blanca - 8</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">2</div>
-                            <span>Hilux Plata - 5</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">3</div>
-                            <span>NP300 Blanca - 5</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">4</div>
-                            <span>Silverado 834 - 4</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">5</div>
-                            <span>RAM Roja - 3</span>
-                        </div>
+                        {stats.masPreventivos.length === 0 && <div className="text-sm text-slate-400">Sin datos</div>}
+                        {stats.masPreventivos.map((v, i) => (
+                            <div key={v.vehiculo_id} className="flex items-center gap-3 bg-emerald-50/50 text-emerald-800 font-semibold text-sm px-4 py-3 rounded-xl border border-emerald-100">
+                                <div className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs shrink-0">{i + 1}</div>
+                                <span>{v.nombre} - {v.total_preventivos}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
                 {/* Top 5 Correctivos */}
                 <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6 transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60">
                     <h3 className="font-bold text-slate-800 mb-6">Top 5 - Más mantenimientos correctivos</h3>
-                    
                     <div className="space-y-3">
-                        <div className="flex items-center gap-3 bg-red-50/50 text-red-800 font-semibold text-sm px-4 py-3 rounded-xl border border-red-100">
-                            <div className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs shrink-0">1</div>
-                            <span>F-150 Gris - 4</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">2</div>
-                            <span>RAM Roja - 3</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">3</div>
-                            <span>Silverado 834 - 2</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">4</div>
-                            <span>Ranger Blanca - 2</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 text-slate-700 font-semibold text-sm px-4 py-3 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-xs shrink-0">5</div>
-                            <span>NP300 Blanca - 1</span>
-                        </div>
+                        {stats.masCorrectivos.length === 0 && <div className="text-sm text-slate-400">Sin datos</div>}
+                        {stats.masCorrectivos.map((v, i) => (
+                            <div key={v.vehiculo_id} className="flex items-center gap-3 bg-red-50/50 text-red-800 font-semibold text-sm px-4 py-3 rounded-xl border border-red-100">
+                                <div className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center text-xs shrink-0">{i + 1}</div>
+                                <span>{v.nombre} - {v.total_correctivos}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
