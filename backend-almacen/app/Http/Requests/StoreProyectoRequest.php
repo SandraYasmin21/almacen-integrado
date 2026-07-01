@@ -17,11 +17,11 @@ class StoreProyectoRequest extends FormRequest
     {
         return [
             'nombre' => ['required', 'string', 'max:180'],
-            'cliente_nombre' => ['nullable', 'string', 'max:180'],
-            'responsable_id' => ['nullable', 'exists:empleados,id'],
+            'cliente_nombre' => ['required', 'string', 'max:180'],
+            'responsable_id' => ['required', 'exists:empleados,id'],
             'fecha_inicio' => ['nullable', 'date'],
             'fecha_cierre_estimada' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
-            'estatus' => ['nullable', Rule::in(['PLANEADO', 'ACTIVO', 'PAUSADO', 'CERRADO', 'CANCELADO'])],
+            'estatus' => ['required', Rule::in(['PLANEADO', 'ACTIVO', 'PAUSADO', 'CERRADO', 'CANCELADO'])],
             'observaciones' => ['nullable', 'string', 'max:2000'],
         ];
     }

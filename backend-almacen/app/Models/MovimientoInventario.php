@@ -14,20 +14,24 @@ class MovimientoInventario extends Model
     public const TIPO_ENTRADA = 'ENTRADA';
     public const TIPO_SALIDA = 'SALIDA';
     public const TIPO_DEVOLUCION = 'DEVOLUCION';
+    public const TIPO_ASIGNACION = 'ASIGNACION';
     public const TIPO_TRANSFERENCIA = 'TRANSFERENCIA';
     public const TIPO_ENVIO_REPARACION = 'ENVIO_REPARACION';
     public const TIPO_RETORNO_REPARACION = 'RETORNO_REPARACION';
     public const TIPO_CAMBIO_RESPONSABLE = 'CAMBIO_RESPONSABLE';
+    public const TIPO_CAMBIO_ESTADO = 'CAMBIO_ESTADO';
     public const TIPO_BAJA_LOGICA = 'BAJA_LOGICA';
 
     public const TIPOS_FORMALES = [
         self::TIPO_ENTRADA,
         self::TIPO_SALIDA,
         self::TIPO_DEVOLUCION,
+        self::TIPO_ASIGNACION,
         self::TIPO_TRANSFERENCIA,
         self::TIPO_ENVIO_REPARACION,
         self::TIPO_RETORNO_REPARACION,
         self::TIPO_CAMBIO_RESPONSABLE,
+        self::TIPO_CAMBIO_ESTADO,
         self::TIPO_BAJA_LOGICA,
     ];
 

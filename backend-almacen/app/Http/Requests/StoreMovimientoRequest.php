@@ -28,6 +28,7 @@ class StoreMovimientoRequest extends FormRequest
             'ubicacion_id' => ['nullable', 'exists:ubicaciones,id'],
             'ubicacion_destino_id' => ['nullable', 'exists:ubicaciones,id'],
             'motivo' => ['nullable', 'string', 'max:1000'],
+            'estado_destino' => ['nullable', 'required_if:tipo,CAMBIO_ESTADO', 'string', 'max:50'],
             'notas' => ['nullable', 'string', 'max:2000'],
         ];
     }

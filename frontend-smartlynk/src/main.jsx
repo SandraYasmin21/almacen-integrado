@@ -17,6 +17,7 @@ import UsuariosSistema from './pages/Empleados/UsuariosSistema';
 
 import CatalogoCentral from './pages/CatalogoCentral/Index';
 import CatalogosConfigurables from './pages/Admin/CatalogosConfigurables';
+import Ubicaciones from './pages/Admin/Ubicaciones';
 import ProyectosIndex from './pages/Proyectos/Index';
 
 import ReportesBasicos from './pages/Reportes/Basicos';
@@ -90,6 +91,7 @@ function App() {
           
           <Route path="/catalogo" element={<CatalogoCentral />} />
           <Route path="/catalogo/configurables" element={<CatalogosConfigurables />} />
+          <Route path="/admin/ubicaciones" element={<Ubicaciones />} />
           <Route path="/proyectos" element={<ProyectosIndex />} />
           
           <Route path="/reportes/basicos" element={<ReportesBasicos />} />

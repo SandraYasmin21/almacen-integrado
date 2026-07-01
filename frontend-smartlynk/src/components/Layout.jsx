@@ -39,6 +39,7 @@ const navigation = [
       { name: 'Recepción', path: '/activos/recepcion' },
       { name: 'Estado de stock', path: '/activos/inventario' },
       { name: 'Historial y ajustes', path: '/activos/movimientos' },
+      { name: 'Ubicaciones', path: '/admin/ubicaciones' },
     ],
   },
   {
@@ -115,6 +116,13 @@ const navigation = [
 
 const rolePermissions = {
   '/admin/usuarios-sistema': ['Admin'],
+  '/admin/ubicaciones': ['Admin', 'Almacen'],
+  '/proyectos': ['Admin', 'Almacen', 'Proyecto', 'Direccion'],
+  '/reportes': ['Admin', 'Direccion'],
+  '/operaciones': ['Admin', 'Almacen'],
+  '/flotilla': ['Admin', 'Almacen', 'Direccion'],
+  '/empleados': ['Admin', 'Almacen'],
+  '/mostrador': ['Admin', 'Almacen'],
   '/catalogo': ['Admin', 'Almacen', 'Almacenista'],
   '/activos': ['Admin', 'Almacen', 'Almacenista', 'Proyecto', 'Direccion'],
 };

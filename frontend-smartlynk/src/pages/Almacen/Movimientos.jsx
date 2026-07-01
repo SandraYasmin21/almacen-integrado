@@ -13,6 +13,13 @@ const TIPO_COLOR = {
   salida: "bg-red-100 text-red-700",
   prestamo: "bg-amber-100 text-amber-700",
   devolucion: "bg-blue-100 text-blue-700",
+  asignacion: "bg-yellow-100 text-yellow-700",
+  transferencia: "bg-violet-100 text-violet-700",
+  cambio_responsable: "bg-indigo-100 text-indigo-700",
+  cambio_estado: "bg-fuchsia-100 text-fuchsia-700",
+  envio_reparacion: "bg-orange-100 text-orange-700",
+  retorno_reparacion: "bg-cyan-100 text-cyan-700",
+  baja_logica: "bg-slate-200 text-slate-700",
 };
 
 async function readJson(response) {
@@ -83,6 +90,12 @@ function MovimientoModal({ movimiento, onClose, onSaved }) {
           <Info label="Cantidad" value={movimiento.cantidad ?? "-"} />
           <Info label="Empleado" value={movimiento.empleado || "-"} />
           <Info label="Usuario" value={movimiento.nombre_usuario || "-"} />
+          <Info label="Ubicacion origen" value={movimiento.ubicacion_origen || "-"} />
+          <Info label="Ubicacion destino" value={movimiento.ubicacion_destino || "-"} />
+          <Info label="Responsable anterior" value={movimiento.responsable_anterior || "-"} />
+          <Info label="Responsable nuevo" value={movimiento.responsable_nuevo || "-"} />
+          <Info label="Proyecto" value={movimiento.proyecto || "-"} />
+          <Info label="Motivo" value={movimiento.motivo || "-"} />
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-bold text-slate-700">Notas</label>
             <textarea
@@ -152,6 +165,9 @@ export default function Movimientos() {
   const [movimientos, setMovimientos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState("");
+  const [buscar, setBuscar] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState(null);
   const [selected, setSelected] = useState(null);
@@ -162,6 +178,9 @@ export default function Movimientos() {
     try {
       const params = new URLSearchParams({ page: String(page) });
       if (filtroTipo) params.append("tipo", filtroTipo);
+      if (buscar) params.append("buscar", buscar);
+      if (fechaInicio) params.append("fecha_inicio", fechaInicio);
+      if (fechaFin) params.append("fecha_fin", fechaFin);
       const response = await fetch(`${API}/api/almacen/movimientos?${params.toString()}`, { headers: authHeaders() });
       const data = await response.json();
       setMovimientos(data.data ?? []);
@@ -173,7 +192,7 @@ export default function Movimientos() {
     }
   };
 
-  useEffect(() => { load(); }, [filtroTipo, page]);
+  useEffect(() => { load(); }, [filtroTipo, buscar, fechaInicio, fechaFin, page]);
 
   const openDetail = async (id) => {
     try {
@@ -190,7 +209,7 @@ export default function Movimientos() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
-            {["", "entrada", "salida", "prestamo", "devolucion"].map((tipo) => (
+            {["", "entrada", "salida", "asignacion", "prestamo", "devolucion", "transferencia", "cambio_responsable", "cambio_estado", "envio_reparacion", "retorno_reparacion", "baja_logica"].map((tipo) => (
               <button
                 key={tipo}
                 onClick={() => { setFiltroTipo(tipo); setPage(1); }}
@@ -201,6 +220,11 @@ export default function Movimientos() {
                 {tipo === "" ? "Todos" : tipo}
               </button>
             ))}
+          </div>
+          <div className="grid w-full gap-2 sm:grid-cols-3">
+            <input value={buscar} onChange={(e) => { setBuscar(e.target.value); setPage(1); }} placeholder="Buscar folio, articulo o SKU" className="h-10 rounded-lg border border-slate-200 px-3 text-sm" />
+            <input type="date" value={fechaInicio} onChange={(e) => { setFechaInicio(e.target.value); setPage(1); }} className="h-10 rounded-lg border border-slate-200 px-3 text-sm" title="Fecha inicial" />
+            <input type="date" value={fechaFin} onChange={(e) => { setFechaFin(e.target.value); setPage(1); }} className="h-10 rounded-lg border border-slate-200 px-3 text-sm" title="Fecha final" />
           </div>
           <MovementExportButtons />
         </div>

@@ -149,6 +149,8 @@ class InventarioService
             MovimientoInventario::TIPO_ENVIO_REPARACION => $this->registrarCambioEstadoSerie($payload, $usuarioId, $tipo, InventarioSerie::ESTADO_REPARACION),
             MovimientoInventario::TIPO_RETORNO_REPARACION => $this->registrarCambioEstadoSerie($payload, $usuarioId, $tipo, InventarioSerie::ESTADO_DISPONIBLE),
             MovimientoInventario::TIPO_CAMBIO_RESPONSABLE => $this->registrarCambioResponsable($payload, $usuarioId),
+            MovimientoInventario::TIPO_ASIGNACION => $this->registrarCambioResponsable($payload, $usuarioId, MovimientoInventario::TIPO_ASIGNACION),
+            MovimientoInventario::TIPO_CAMBIO_ESTADO => $this->registrarCambioEstadoSerie($payload, $usuarioId, $tipo, (string) $payload['estado_destino']),
             MovimientoInventario::TIPO_BAJA_LOGICA => $this->registrarBajaLogica($payload, $usuarioId),
             default => throw ValidationException::withMessages(['tipo' => 'Tipo de movimiento avanzado no soportado.']),
         };
@@ -322,9 +324,9 @@ class InventarioService
         });
     }
 
-    private function registrarCambioResponsable(array $payload, ?int $usuarioId): array
+    private function registrarCambioResponsable(array $payload, ?int $usuarioId, string $tipo = MovimientoInventario::TIPO_CAMBIO_RESPONSABLE): array
     {
-        return DB::transaction(function () use ($payload, $usuarioId) {
+        return DB::transaction(function () use ($payload, $usuarioId, $tipo) {
             $empleadoDestino = (int) ($payload['empleado_destino_id'] ?? $payload['empleado_id'] ?? 0);
             if ($empleadoDestino <= 0) {
                 throw ValidationException::withMessages(['empleado_destino_id' => 'El cambio de responsable requiere empleado destino.']);
@@ -332,7 +334,7 @@ class InventarioService
 
             $previos = [];
             $nuevos = [];
-            $movimientoId = $this->crearMovimiento(MovimientoInventario::TIPO_CAMBIO_RESPONSABLE, [
+            $movimientoId = $this->crearMovimiento($tipo, [
                 'usuario_id' => $usuarioId,
                 'empleado_id' => $empleadoDestino,
                 'notas' => $payload['notas'] ?? $payload['motivo'] ?? null,

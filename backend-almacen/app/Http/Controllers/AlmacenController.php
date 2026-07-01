@@ -1282,6 +1282,8 @@ class AlmacenController extends Controller
             MovimientoInventario::TIPO_ENVIO_REPARACION,
             MovimientoInventario::TIPO_RETORNO_REPARACION,
             MovimientoInventario::TIPO_CAMBIO_RESPONSABLE,
+            MovimientoInventario::TIPO_ASIGNACION,
+            MovimientoInventario::TIPO_CAMBIO_ESTADO,
             MovimientoInventario::TIPO_BAJA_LOGICA,
         ];
 
@@ -1330,7 +1332,12 @@ class AlmacenController extends Controller
             ->leftJoin('empleados as e', 'mi.empleado_id', '=', 'e.id')
             ->leftJoin('detalle_movimiento as dm', 'mi.id', '=', 'dm.movimiento_id')
             ->leftJoin('catalogo_articulos as ca', 'dm.articulo_id', '=', 'ca.id')
-            ->leftJoin('inventario_series as is', 'dm.serie_id', '=', 'is.id');
+            ->leftJoin('inventario_series as is', 'dm.serie_id', '=', 'is.id')
+            ->leftJoin('ubicaciones as uo', 'mi.ubicacion_origen_id', '=', 'uo.id')
+            ->leftJoin('ubicaciones as ud', 'mi.ubicacion_destino_id', '=', 'ud.id')
+            ->leftJoin('empleados as ra', 'mi.responsable_anterior_id', '=', 'ra.id')
+            ->leftJoin('empleados as rn', 'mi.responsable_nuevo_id', '=', 'rn.id')
+            ->leftJoin('proyectos_presupuestos as pp', 'mi.proyecto_id', '=', 'pp.id');
 
         if (Schema::hasColumn('movimiento_inventario', 'deleted_at')) {
             $query->whereNull('mi.deleted_at');
@@ -1342,6 +1349,7 @@ class AlmacenController extends Controller
             DB::raw("LOWER(CAST(mi.{$tipoColumn} AS TEXT)) as tipo"),
             'mi.fecha_hora',
             'mi.notas',
+            'mi.motivo',
             'u.nombre_usuario',
             'e.nombre_completo as empleado',
             'ca.nombre as articulo',
@@ -1349,7 +1357,12 @@ class AlmacenController extends Controller
             'dm.id as detalle_id',
             'dm.cantidad',
             'dm.serie_id',
-            'is.codigo_interno_generado as sku'
+            'is.codigo_interno_generado as sku',
+            'uo.nombre as ubicacion_origen',
+            'ud.nombre as ubicacion_destino',
+            'ra.nombre_completo as responsable_anterior',
+            'rn.nombre_completo as responsable_nuevo',
+            'pp.nombre as proyecto'
         );
     }
 
@@ -1361,8 +1374,24 @@ class AlmacenController extends Controller
                 $value = Schema::hasColumn('movimiento_inventario', 'tipo') ? strtolower($request->tipo) : strtoupper($request->tipo);
                 $query->where("mi.{$tipoColumn}", $value);
             })
+            ->when($request->filled('fecha_inicio'), fn ($query) => $query->whereDate('mi.fecha_hora', '>=', $request->fecha_inicio))
+            ->when($request->filled('fecha_fin'), fn ($query) => $query->whereDate('mi.fecha_hora', '<=', $request->fecha_fin))
+            ->when($request->filled('articulo_id'), fn ($query) => $query->where('dm.articulo_id', $request->integer('articulo_id')))
+            ->when($request->filled('responsable_id'), function ($query) use ($request) {
+                $id = $request->integer('responsable_id');
+                $query->where(fn ($inner) => $inner->where('mi.empleado_id', $id)->orWhere('mi.responsable_anterior_id', $id)->orWhere('mi.responsable_nuevo_id', $id));
+            })
+            ->when($request->filled('proyecto_id'), fn ($query) => $query->where('mi.proyecto_id', $request->integer('proyecto_id')))
+            ->when($request->filled('ubicacion_id'), function ($query) use ($request) {
+                $id = $request->integer('ubicacion_id');
+                $query->where(fn ($inner) => $inner->where('mi.ubicacion_origen_id', $id)->orWhere('mi.ubicacion_destino_id', $id));
+            })
+            ->when($request->filled('buscar'), function ($query) use ($request) {
+                $term = '%' . $request->string('buscar')->toString() . '%';
+                $query->where(fn ($inner) => $inner->where('mi.folio', 'ilike', $term)->orWhere('ca.nombre', 'ilike', $term)->orWhere('is.codigo_interno_generado', 'ilike', $term));
+            })
             ->orderByDesc('mi.fecha_hora')
-            ->paginate(20);
+            ->paginate($request->integer('per_page', 20));
 
         return response()->json($movs);
     }

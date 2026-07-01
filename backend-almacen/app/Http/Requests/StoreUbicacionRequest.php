@@ -16,7 +16,7 @@ class StoreUbicacionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'nombre' => ['required', 'string', 'max:150'],
+            'nombre' => ['required', 'string', 'max:150', Rule::unique('ubicaciones', 'nombre')->ignore($this->route('ubicacion'))],
             'tipo' => ['nullable', 'string', 'max:50'],
             'activo' => ['nullable', 'boolean'],
         ];

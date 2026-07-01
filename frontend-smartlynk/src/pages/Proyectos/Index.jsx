@@ -183,9 +183,9 @@ export default function ProyectosIndex() {
         <h1 className="text-xl font-extrabold text-slate-900">Proyectos</h1>
         <div className="mt-5 space-y-3">
           <input className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:ring-4 focus:ring-blue-100" placeholder="Nombre del proyecto" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
-          <input className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:ring-4 focus:ring-blue-100" placeholder="Cliente" value={form.cliente_nombre} onChange={(e) => setForm({ ...form, cliente_nombre: e.target.value })} />
-          <select className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:ring-4 focus:ring-blue-100" value={form.responsable_id} onChange={(e) => setForm({ ...form, responsable_id: e.target.value })}>
-            <option value="">Responsable</option>
+          <input required className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:ring-4 focus:ring-blue-100" placeholder="Cliente *" value={form.cliente_nombre} onChange={(e) => setForm({ ...form, cliente_nombre: e.target.value })} />
+          <select required className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm outline-none focus:ring-4 focus:ring-blue-100" value={form.responsable_id} onChange={(e) => setForm({ ...form, responsable_id: e.target.value })}>
+            <option value="">Responsable del proyecto *</option>
             {empleados.map((empleado) => (
               <option key={empleado.id} value={empleado.id}>{empleado.nombre_completo}</option>
             ))}
