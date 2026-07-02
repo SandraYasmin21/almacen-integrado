@@ -205,6 +205,23 @@ export default function GastosExtra() {
     const totalPages = Math.ceil(totalGastos / rowsPerPage) || 1;
     const paginatedGastos = allGastos.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
 
+    const handleExport = async (format) => {
+        try {
+            const response = await fetch(`${API}/api/exportar/gastosextra/${format}`, { headers: authHeaders() });
+            if (!response.ok) throw new Error('No se pudo generar el reporte');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `gastos_extra.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exportando ${format.toUpperCase()}...`);
+        } catch (error) {
+            toast.error(error.message);
+        }
+    };
+
     useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages);
@@ -259,13 +276,13 @@ export default function GastosExtra() {
                     
                     <div className="flex gap-2 ml-auto">
                         <button 
-                            onClick={() => toast.success('Exportando a PDF...')}
+                            onClick={() => handleExport('pdf')}
                             className="bg-[#ff2d55] hover:bg-[#ff1441] text-white px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition-colors outline-none"
                         >
                             Exportar PDF
                         </button>
                         <button 
-                            onClick={() => toast.success('Exportando a Excel...')} 
+                            onClick={() => handleExport('excel')} 
                             className="bg-[#00d084] hover:bg-[#00bd78] text-white px-5 py-2 rounded-full text-sm font-semibold shadow-sm transition-colors outline-none"
                         >
                             Exportar Excel

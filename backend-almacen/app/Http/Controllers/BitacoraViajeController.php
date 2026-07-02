@@ -62,6 +62,10 @@ class BitacoraViajeController extends Controller
         }
 
         $viaje = BitacoraVehiculo::create($validated);
+        $viaje->vehiculo?->update([
+            'estado' => 'ASIGNADO',
+            'kilometraje_actual' => max((float) ($viaje->vehiculo?->kilometraje_actual ?? 0), (float) ($validated['km_inicial'] ?? 0)),
+        ]);
 
         return response()->json([
             'mensaje' => 'Salida de vehículo registrada',
@@ -118,6 +122,7 @@ class BitacoraViajeController extends Controller
         $viaje->update($validated);
         if (isset($validated['km_final']) && Schema::hasColumn('vehiculos_flotilla', 'kilometraje_actual')) {
             $viaje->vehiculo?->update([
+                'estado' => 'DISPONIBLE',
                 'kilometraje_actual' => max((float) $viaje->vehiculo->kilometraje_actual, (float) $validated['km_final']),
             ]);
         }

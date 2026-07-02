@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import Barcode from "react-barcode";
 import { QRCodeCanvas } from "qrcode.react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { DocumentPlusIcon, ArrowDownTrayIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { toast } from "sonner";
 import { DataTableShell, ExportButtons, dataTableClass } from "../../components/ui/premium";
@@ -125,6 +125,7 @@ function ModalSalida({ articulo, empleados, onClose, onSuccess }) {
 
 // Página principal de almacén
 export default function AlmacenIndex() {
+  const [searchParams] = useSearchParams();
   const [articulos, setArticulos]   = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [empleados, setEmpleados]   = useState([]);
@@ -225,6 +226,13 @@ export default function AlmacenIndex() {
   };
 
   useEffect(() => { cargar(); }, []);
+
+  useEffect(() => {
+    const terminoTopbar = searchParams.get("buscar") || "";
+    if (terminoTopbar) {
+      setBusqueda(terminoTopbar);
+    }
+  }, [searchParams]);
 
   const filtrados = articulos.filter(a => {
     // Convertimos la búsqueda a minúsculas una sola vez para mejorar el rendimiento

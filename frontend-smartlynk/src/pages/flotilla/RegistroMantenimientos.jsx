@@ -41,10 +41,11 @@ const mantenimientoSchema = z.object({
     vehiculo_id: z.string().min(1, "Obligatorio"),
     fecha: z.string().min(1, "Obligatorio"),
     tipo: z.enum(['preventivo', 'correctivo', 'lectura']),
-    detalle_falla: z.string().optional(),
+    detalle_falla: z.string().min(1, "Obligatorio"),
     kilometraje: z.string().min(1, "Obligatorio"),
-    costo: z.string().optional(),
-    subtipo: z.string().optional()
+    costo: z.string().min(1, "Obligatorio"),
+    subtipo: z.string().optional(),
+    notas: z.string().min(1, "Obligatorio")
 });
 
 function FilterPopover({ title, options, selected, onChange }) {
@@ -160,7 +161,7 @@ export default function RegistroMantenimientos() {
 
     const activeFilterCount = Object.values(filters).flat().length;
 
-    const handleExport = (format) => {
+    const handleExport = async (format) => {
         const queryParams = new URLSearchParams();
         if (filters.vehiculo.length) queryParams.append('vehiculo', filters.vehiculo.join(','));
         if (filters.tipo.length) queryParams.append('tipo', filters.tipo.join(','));
@@ -168,11 +169,20 @@ export default function RegistroMantenimientos() {
 
         if (date.from) queryParams.append('fecha_inicio', date.from.toISOString().split('T')[0]);
         if (date.to) queryParams.append('fecha_fin', date.to.toISOString().split('T')[0]);
-
-        const url = `/api/exportar/mantenimientos/${format}?${queryParams.toString()}`;
-        
-        window.location.href = url;
-        toast.success(`Exportando ${format.toUpperCase()}...`);
+        try {
+            const response = await fetch(`${API}/api/exportar/mantenimientos/${format}?${queryParams.toString()}`, { headers: authHeaders() });
+            if (!response.ok) throw new Error('No se pudo generar el reporte');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `mantenimientos.${format === 'excel' ? 'xlsx' : 'pdf'}`;
+            link.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Exportando ${format.toUpperCase()}...`);
+        } catch (error) {
+            toast.error(error.message);
+        }
     };
     
     const allRegistros = registros
@@ -184,6 +194,9 @@ export default function RegistroMantenimientos() {
             km: `${Number(registro.kilometraje || 0).toLocaleString('es-MX')} km`,
             costo: `$${Number(registro.costo || 0).toLocaleString('es-MX')}`,
             subtipo: registro.tipo_mantenimiento || '-',
+            usuario: registro.usuario?.nombre_usuario || '-',
+            notas: registro.notas || '-',
+            evidencia_path: registro.evidencia_path || null,
         }))
         .filter((registro) => !filters.vehiculo.length || filters.vehiculo.includes(registro.vehiculo))
         .filter((registro) => !filters.tipo.length || filters.tipo.some((tipo) => tipo.toLowerCase() === registro.tipo))
@@ -292,6 +305,7 @@ export default function RegistroMantenimientos() {
                                 <th className="w-[11%] px-4 py-4 font-semibold">Kilometraje</th>
                                 <th className="w-[9%] px-4 py-4 text-right font-semibold">Costo</th>
                                 <th className="w-[9%] px-4 py-4 font-semibold">Subtipo</th>
+                                <th className="w-[9%] px-4 py-4 font-semibold">Capturó</th>
                                 <th className="w-[5%] px-4 py-4"></th>
                             </tr>
                         </thead>
@@ -307,6 +321,7 @@ export default function RegistroMantenimientos() {
                                     <td className="truncate px-4 py-4 font-mono text-xs font-semibold text-slate-800">{r.km}</td>
                                     <td className="truncate px-4 py-4 text-right font-bold text-slate-800">{r.costo}</td>
                                     <td className="truncate px-4 py-4 text-slate-500">{r.subtipo}</td>
+                                    <td className="truncate px-4 py-4 text-slate-500">{r.usuario}</td>
                                     <td className="px-4 py-4 text-right">
                                         <button 
                                             onClick={() => handleEditRegistro(r)}
@@ -318,7 +333,7 @@ export default function RegistroMantenimientos() {
                                 </tr>
                             ))}
                             {paginatedRegistros.length === 0 && (
-                                <tr><td colSpan={8} className="px-4 py-10 text-center text-slate-500">No hay mantenimientos registrados.</td></tr>
+                                <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-500">No hay mantenimientos registrados.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -404,6 +419,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                 setValue('kilometraje', editData.km ? editData.km.replace(' km', '').replace(/,/g, '') : "");
                 setValue('costo', editData.costo ? editData.costo.replace('$', '').replace(/,/g, '') : "");
                 setValue('subtipo', editData.subtipo || "");
+                setValue('notas', editData.notas === '-' ? "" : editData.notas || "");
             } else {
                 reset({ tipo: 'preventivo' });
             }
@@ -414,17 +430,13 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
 
     const onSubmit = async (data) => {
         try {
-            if (data.tipo === 'correctivo' && !evidenciaFile && !editData) {
-                toast.error(`El tipo 'correctivo' requiere evidencia obligatoria.`);
-                return;
-            }
-
             const response = await fetch(`${API}/api/flotilla/registros${editData ? `/${editData.id}` : ''}`, {
                 method: editData ? 'PUT' : 'POST', headers: authHeaders(),
                 body: JSON.stringify({
                     vehiculo_id: Number(data.vehiculo_id), fecha: data.fecha, tipo: data.tipo,
                     detalle_falla: data.detalle_falla || null, kilometraje: Number(data.kilometraje),
                     costo: Number(data.costo || 0), tipo_mantenimiento: data.subtipo || null,
+                    notas: data.notas,
                     evidencia_path: evidenciaFile ? 'archivo_adjunto' : (editData ? editData.evidencia_path : null)
                 }),
             });
@@ -553,13 +565,14 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Detalle / Falla</label>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Detalle / Falla <span className="text-red-500">*</span></label>
                                     <textarea 
                                         {...register('detalle_falla')}
                                         placeholder="Descripcion libre de la falla o trabajo realizado..."
                                         rows={3}
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
                                     ></textarea>
+                                    {errors.detalle_falla && <p className="text-red-500 text-xs mt-1">{errors.detalle_falla.message}</p>}
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
@@ -573,12 +586,13 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                                         {errors.kilometraje && <p className="text-red-500 text-xs mt-1">{errors.kilometraje.message}</p>}
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Costo (MXN)</label>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-1">Costo (MXN) <span className="text-red-500">*</span></label>
                                         <input 
                                             {...register('costo')}
                                             placeholder="$0.00 - default: 0"
                                             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                         />
+                                        {errors.costo && <p className="text-red-500 text-xs mt-1">{errors.costo.message}</p>}
                                     </div>
                                 </div>
 
@@ -590,12 +604,23 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                     />
                                 </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-slate-700 mb-1">Notas <span className="text-red-500">*</span></label>
+                                    <textarea
+                                        {...register('notas')}
+                                        placeholder="Comentarios adicionales del mantenimiento..."
+                                        rows={2}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                    />
+                                    {errors.notas && <p className="text-red-500 text-xs mt-1">{errors.notas.message}</p>}
+                                </div>
                                 
                                 <div className="pt-2 border-t border-slate-100 mt-4">
                                     <h5 className="text-sm font-semibold text-slate-800 mb-2">Evidencias y Adjuntos</h5>
                                     <FileUpload 
                                         onFileChange={setEvidenciaFile} 
-                                        label="Subir nueva evidencia (Requerido para correctivos en nuevo registro)" 
+                                        label="Subir evidencia opcional (factura, foto o comprobante)" 
                                     />
                                     {editData && (
                                         <div className="mt-4">

@@ -138,8 +138,8 @@ class ReporteBasicoController extends Controller
         return DB::table('inventario_series as is')
             ->leftJoin('ubicaciones as u', 'is.ubicacion_id', '=', 'u.id')
             ->whereNull('is.deleted_at')
-            ->select(DB::raw('COALESCE(u.nombre, is.ubicacion, \'Sin ubicacion\') as ubicacion'), DB::raw('COUNT(*) as total'))
-            ->groupBy(DB::raw('COALESCE(u.nombre, is.ubicacion, \'Sin ubicacion\')'))
+            ->select(DB::raw('COALESCE(u.nombre, is.ubicacion, \'Sin ubicación\') as ubicacion'), DB::raw('COUNT(*) as total'))
+            ->groupBy(DB::raw('COALESCE(u.nombre, is.ubicacion, \'Sin ubicación\')'))
             ->orderBy('ubicacion')
             ->get();
     }
@@ -176,22 +176,32 @@ class ReporteBasicoController extends Controller
             ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
             ->leftJoin('categorias as c', 'sc.categoria_id', '=', 'c.id')
             ->whereNull('sg.deleted_at')
-            ->select('ca.nombre', 'ca.unidad_medida', 'c.nombre as categoria', DB::raw('COALESCE(u.nombre, sg.ubicacion, \'Sin ubicacion\') as ubicacion'), DB::raw('SUM(sg.cantidad) as existencia'))
-            ->groupBy('ca.nombre', 'ca.unidad_medida', 'c.nombre', DB::raw('COALESCE(u.nombre, sg.ubicacion, \'Sin ubicacion\')'))
+            ->select('ca.nombre', 'ca.unidad_medida', 'c.nombre as categoria', DB::raw('COALESCE(u.nombre, sg.ubicacion, \'Sin ubicación\') as ubicacion'), DB::raw('SUM(sg.cantidad) as existencia'))
+            ->groupBy('ca.nombre', 'ca.unidad_medida', 'c.nombre', DB::raw('COALESCE(u.nombre, sg.ubicacion, \'Sin ubicación\')'))
             ->orderBy('ca.nombre')
             ->get();
     }
 
     private function vehiculos()
     {
-        return DB::table('vehiculos_flotilla')
-            ->whereNull('deleted_at')
+        return DB::table('vehiculos_flotilla as v')
+            ->leftJoin('empleados as e', 'v.responsable_id', '=', 'e.id')
+            ->leftJoin('ubicaciones as u', 'v.ubicacion_id', '=', 'u.id')
+            ->whereNull('v.deleted_at')
             ->select(
-                'codigo_vehiculo', 'nombre', 'marca', 'modelo', 'anio',
-                DB::raw("COALESCE(placa, placas, '') as placa"),
-                'niv', 'estado', 'kilometraje_actual'
+                'v.codigo_vehiculo',
+                'v.nombre',
+                'v.marca',
+                'v.modelo',
+                'v.anio',
+                DB::raw("COALESCE(v.placa, v.placas, '') as placa"),
+                'v.niv',
+                'v.estado',
+                'v.kilometraje_actual',
+                'e.nombre_completo as responsable',
+                'u.nombre as ubicacion'
             )
-            ->orderBy('nombre')
+            ->orderBy('v.nombre')
             ->get();
     }
 
@@ -216,8 +226,8 @@ class ReporteBasicoController extends Controller
             ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
             ->leftJoin('categorias as c', 'sc.categoria_id', '=', 'c.id')
             ->whereNull('ca.deleted_at')
-            ->select(DB::raw('COALESCE(c.nombre, \'Sin categoria\') as categoria'), DB::raw('COUNT(*) as total'))
-            ->groupBy(DB::raw('COALESCE(c.nombre, \'Sin categoria\')'))
+            ->select(DB::raw('COALESCE(c.nombre, \'Sin categoría\') as categoria'), DB::raw('COUNT(*) as total'))
+            ->groupBy(DB::raw('COALESCE(c.nombre, \'Sin categoría\')'))
             ->orderBy('categoria')
             ->get();
     }

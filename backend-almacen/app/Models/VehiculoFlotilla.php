@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -76,5 +77,15 @@ class VehiculoFlotilla extends Model
     public function bitacoraViajes(): HasMany
     {
         return $this->hasMany(BitacoraVehiculo::class, 'vehiculo_id');
+    }
+
+    public function responsable(): BelongsTo
+    {
+        return $this->belongsTo(Empleado::class, 'responsable_id');
+    }
+
+    public function ubicacion(): BelongsTo
+    {
+        return $this->belongsTo(Ubicacion::class, 'ubicacion_id');
     }
 }

@@ -8,3 +8,4 @@ class AsignacionActivo extends Model
 {
     //
 }
+

@@ -6,13 +6,13 @@ import { ArrowDownTrayIcon, DocumentTextIcon } from "@heroicons/react/24/outline
 const labels = {
   "activos-registrados": "Activos registrados",
   "activos-estado": "Activos por estado",
-  "activos-ubicacion": "Activos por ubicacion",
+  "activos-ubicacion": "Activos por ubicación",
   "activos-responsable": "Activos por responsable",
   "activos-proyecto": "Activos por proyecto",
   "materiales-consumibles": "Materiales / consumibles",
-  vehiculos: "Vehiculos",
+  vehiculos: "Vehículos",
   movimientos: "Movimientos",
-  "activos-categoria": "Activos por categoria",
+  "activos-categoria": "Activos por categoría",
 };
 
 export default function ReportesBasicos() {
