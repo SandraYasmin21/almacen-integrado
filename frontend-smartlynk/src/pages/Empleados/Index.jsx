@@ -103,12 +103,32 @@ function AssetBadge({ type, label }) {
   );
 }
 
-function ExportButtons() {
+function ExportButtons({ view }) {
+  const download = async (format) => {
+    const toastId = toast.loading(`Preparando ${format === "pdf" ? "PDF" : "Excel"}...`);
+    try {
+      const response = await apiFetch(`/api/empleados/export/${format}?tipo=${view}`);
+      if (!response.ok) throw new Error("No se pudo generar el archivo");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `empleados-${view}.${format === "pdf" ? "pdf" : "xlsx"}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Archivo descargado", { id: toastId });
+    } catch {
+      toast.error("No se pudo descargar el archivo", { id: toastId });
+    }
+  };
+
   return (
     <div className="flex flex-wrap gap-2">
       <button
         type="button"
-        onClick={() => toast.success("Preparando PDF...")}
+        onClick={() => download("pdf")}
         className="inline-flex items-center gap-2 rounded-full bg-rose-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-rose-600 hover:shadow-md"
       >
         <ArrowDownTrayIcon className="h-4 w-4" />
@@ -116,7 +136,7 @@ function ExportButtons() {
       </button>
       <button
         type="button"
-        onClick={() => toast.success("Preparando Excel...")}
+        onClick={() => download("excel")}
         className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-md"
       >
         <ArrowDownTrayIcon className="h-4 w-4" />
@@ -489,7 +509,7 @@ export default function Empleados({ view = "directorio" }) {
             <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
           </div>
         </div>
-        {view !== "directorio" && <ExportButtons />}
+        {view !== "directorio" && <ExportButtons view={view} />}
       </div>
 
       {view === "directorio" && (

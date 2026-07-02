@@ -267,6 +267,24 @@ class AlmacenController extends Controller
         return response()->json(['error' => 'Format not supported'], 400);
     }
 
+    private function getInventarioQuery()
+    {
+        return DB::table('stock_general as sg')
+            ->join('catalogo_articulos as ca', 'sg.articulo_id', '=', 'ca.id')
+            ->leftJoin('subcategorias as sc', 'ca.subcategoria_id', '=', 'sc.id')
+            ->whereNull('ca.deleted_at')
+            ->whereNull('sg.deleted_at')
+            ->select(
+                'ca.nombre',
+                'ca.modelo',
+                'sc.nombre as subcategoria',
+                'sg.cantidad',
+                'ca.stock_minimo',
+                'sg.ubicacion'
+            )
+            ->orderBy('ca.nombre');
+    }
+
     public function articuloDetalle(int $id)
     {
         $articulo = DB::table('catalogo_articulos as ca')

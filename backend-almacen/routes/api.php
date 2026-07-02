@@ -141,6 +141,7 @@ Route::middleware(['auth:sanctum', 'throttle:api-general'])->group(function () {
 
     Route::get('proveedores', fn () => DB::table('proveedores')->where('activo', true)->orderBy('nombre_empresa')->get());
     Route::get('empleados/estados', [EmpleadoController::class, 'estadosApi']);
+    Route::get('empleados/export/{formato}', [EmpleadoController::class, 'export']);
     Route::get('empleados', [EmpleadoController::class, 'apiIndex']);
     Route::apiResource('categorias', CategoriaController::class);
 

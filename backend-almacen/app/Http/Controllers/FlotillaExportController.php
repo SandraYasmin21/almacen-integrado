@@ -58,9 +58,9 @@ class FlotillaExportController extends Controller
             ->select(
                 'v.nombre as vehiculo',
                 'g.fecha',
-                'g.categoria',
+                'g.tipo',
                 'g.costo',
-                'g.descripcion'
+                'g.observaciones'
             )
             ->orderByDesc('g.fecha');
 
@@ -68,16 +68,16 @@ class FlotillaExportController extends Controller
             $query->where('g.vehiculo_id', $request->vehiculo_id);
         }
         if ($request->filled('categoria')) {
-            $query->where('g.categoria', $request->categoria);
+            $query->where('g.tipo', $request->categoria);
         }
 
         $data = $query->get()->map(function($item) {
             return [
                 'vehiculo' => $item->vehiculo,
                 'fecha' => Carbon::parse($item->fecha)->format('d/m/Y'),
-                'categoria' => ucfirst($item->categoria),
+                'categoria' => ucfirst($item->tipo),
                 'costo' => '$' . number_format($item->costo, 2),
-                'descripcion' => $item->descripcion ?: '-'
+                'descripcion' => $item->observaciones ?: '-'
             ];
         });
 
@@ -108,17 +108,16 @@ class FlotillaExportController extends Controller
     {
         $query = DB::table('bitacora_vehiculos as b')
             ->join('vehiculos_flotilla as v', 'b.vehiculo_id', '=', 'v.id')
-            ->leftJoin('proyectos as p', 'b.proyecto_id', '=', 'p.id')
-            ->leftJoin('empleados as e', 'b.conductor_id', '=', 'e.id')
+            ->leftJoin('empleados as e', 'b.empleado_id', '=', 'e.id')
             ->whereNull('b.deleted_at')
             ->select(
                 'v.nombre as vehiculo',
-                'p.nombre as proyecto',
+                DB::raw("'Sin proyecto' as proyecto"),
                 'e.nombre_completo as conductor',
                 'b.fecha_hora_salida',
-                'b.km_salida',
+                'b.km_inicial as km_salida',
                 'b.fecha_hora_regreso',
-                'b.km_regreso'
+                'b.km_final as km_regreso'
             )
             ->orderByDesc('b.fecha_hora_salida');
 
@@ -147,20 +146,19 @@ class FlotillaExportController extends Controller
     private function generarArchivo($nombre, $data, $headings, $formato)
     {
         $filename = "Export_{$nombre}_" . Carbon::now()->format('Ymd_His');
+        $exportData = collect($data)
+            ->map(fn ($row) => array_values((array) $row))
+            ->values()
+            ->all();
 
         if ($formato === 'excel') {
-            return Excel::download(new GenericExport($data, $headings), $filename . '.xlsx');
+            return Excel::download(new GenericExport($exportData, $headings), $filename . '.xlsx');
         }
 
         if ($formato === 'pdf') {
-            // Aseguramos de que todo sea un array para la vista generic
-            $exportData = [];
-            foreach ($data as $row) {
-                $exportData[] = array_values((array)$row);
-            }
             $pdf = Pdf::loadView('exports.generic', [
                 'headings' => $headings,
-                'data' => collect($exportData),
+                'data' => $exportData,
                 'title' => str_replace('_', ' ', $nombre)
             ])->setPaper('a4', 'landscape');
             return $pdf->download($filename . '.pdf');

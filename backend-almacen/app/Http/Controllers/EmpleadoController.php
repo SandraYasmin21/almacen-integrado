@@ -2,14 +2,55 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\GenericExport;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Carbon\Carbon;
+use Maatwebsite\Excel\Facades\Excel;
 
 class EmpleadoController extends Controller
 {
+    public function export(Request $request, string $formato)
+    {
+        abort_unless(in_array($formato, ['pdf', 'excel'], true), 404);
+        $tipo = $request->query('tipo') === 'prestamos' ? 'prestamos' : 'resguardos';
+
+        if ($tipo === 'prestamos') {
+            $tipoMovimiento = Schema::hasColumn('movimiento_inventario', 'tipo') ? 'tipo' : 'tipo_movimiento';
+            $data = DB::table('movimiento_inventario as mi')
+                ->join('empleados as e', 'mi.empleado_id', '=', 'e.id')
+                ->leftJoin('detalle_movimiento as dm', 'mi.id', '=', 'dm.movimiento_id')
+                ->leftJoin('catalogo_articulos as ca', 'dm.articulo_id', '=', 'ca.id')
+                ->leftJoin('inventario_series as serie', 'dm.serie_id', '=', 'serie.id')
+                ->whereIn("mi.{$tipoMovimiento}", ['prestamo', 'SALIDA'])
+                ->select('e.nombre_completo', 'e.departamento_area', DB::raw("COALESCE(ca.nombre, serie.codigo_interno_generado, 'Activo sin nombre') as activo"), 'mi.fecha_hora', 'mi.notas')
+                ->orderByDesc('mi.fecha_hora')->get()->map(fn ($row) => (array) $row)->all();
+            $headings = ['Empleado', 'Departamento', 'Activo', 'Fecha de salida', 'Notas'];
+            $title = 'Prestamos activos de empleados';
+        } else {
+            $data = DB::table('asignaciones_activos as aa')
+                ->join('empleados as e', 'aa.empleado_id', '=', 'e.id')
+                ->join('inventario_series as serie', 'aa.serie_id', '=', 'serie.id')
+                ->join('catalogo_articulos as ca', 'serie.articulo_id', '=', 'ca.id')
+                ->whereNull('aa.fecha_devolucion')
+                ->select('e.nombre_completo', 'e.departamento_area', 'ca.nombre', 'serie.codigo_interno_generado', 'aa.fecha_entrega')
+                ->orderBy('e.nombre_completo')->get()->map(fn ($row) => (array) $row)->all();
+            $headings = ['Empleado', 'Departamento', 'Activo', 'Codigo', 'Fecha de entrega'];
+            $title = 'Resguardos fijos de empleados';
+        }
+
+        if ($formato === 'excel') {
+            return Excel::download(new GenericExport($data, $headings), "empleados-{$tipo}.xlsx");
+        }
+
+        return Pdf::loadView('exports.generic', compact('data', 'headings', 'title'))
+            ->setPaper('letter', 'landscape')
+            ->download("empleados-{$tipo}.pdf");
+    }
+
     public function apiIndex()
     {
         $empleadosQuery = DB::table('empleados')
