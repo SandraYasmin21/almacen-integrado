@@ -37,8 +37,8 @@ class BusquedaAvanzadaController extends Controller
             })
             ->leftJoin('proyectos_presupuestos as pp', 'pr.proyecto_id', '=', 'pp.id')
             ->whereNull('ca.deleted_at')
-            ->when($term, function ($q) use ($term) {
-                $q->where(function ($inner) use ($term) {
+            ->when($term, function ($q) use ($term, $marcaExpression) {
+                $q->where(function ($inner) use ($term, $marcaExpression) {
                     $inner->where('ca.nombre', 'ilike', $term)
                         ->orWhere('ca.sku_maestro', 'ilike', $term)
                         ->orWhereRaw("$marcaExpression ILIKE ?", [$term])
@@ -47,6 +47,14 @@ class BusquedaAvanzadaController extends Controller
                         ->orWhere('is.numero_serie_fabricante', 'ilike', $term);
                 });
             })
+            ->when($request->filled('codigo'), function ($q) use ($request) {
+                $value = '%' . $request->input('codigo') . '%';
+                $q->where(function ($inner) use ($value) {
+                    $inner->where('ca.sku_maestro', 'ilike', $value)
+                        ->orWhere('is.codigo_interno_generado', 'ilike', $value);
+                });
+            })
+            ->when($request->filled('nombre'), fn ($q) => $q->where('ca.nombre', 'ilike', '%' . $request->input('nombre') . '%'))
             ->when($request->filled('categoria_id'), fn ($q) => $q->where('c.id', $request->integer('categoria_id')))
             ->when($request->filled('marca'), fn ($q) => $q->whereRaw("$marcaExpression ILIKE ?", ['%' . $request->input('marca') . '%']))
             ->when($request->filled('modelo'), fn ($q) => $q->where('ca.modelo', 'ilike', '%' . $request->input('modelo') . '%'))

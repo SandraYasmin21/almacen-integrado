@@ -26,6 +26,8 @@ class RegistroVehicular extends Model
         'kilometraje',
         'costo',
         'tipo_mantenimiento',
+        'taller',
+        'fecha_inicio_reparacion',
     ];
 
     protected $casts = [

@@ -46,8 +46,8 @@ class ReporteVehicularController extends Controller
 
         $mantenimientosPorTipo = DB::table('registros_vehiculares')
             ->whereNull('deleted_at')
-            ->select('tipo_mantenimiento', DB::raw('COUNT(*) as total'), DB::raw('SUM(costo) as costo_total'))
-            ->groupBy('tipo_mantenimiento')
+            ->select(DB::raw("COALESCE(tipo_mantenimiento, tipo) as tipo_mantenimiento"), DB::raw('COUNT(*) as total'), DB::raw('SUM(costo) as costo_total'))
+            ->groupBy(DB::raw("COALESCE(tipo_mantenimiento, tipo)"))
             ->orderBy('tipo_mantenimiento')
             ->get();
 

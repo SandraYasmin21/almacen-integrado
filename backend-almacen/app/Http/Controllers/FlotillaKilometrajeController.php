@@ -26,13 +26,15 @@ class FlotillaKilometrajeController extends Controller
      */
     public function index(): JsonResponse
     {
-        $vehiculos = VehiculoFlotilla::where('estado', 'ACTIVO')->get();
+        $vehiculos = VehiculoFlotilla::whereIn('estado', ['ACTIVO', 'DISPONIBLE', 'ASIGNADO', 'EN_MANTENIMIENTO'])->get();
 
         $resultado = $vehiculos->map(function (VehiculoFlotilla $v) {
 
             // ── Máximo kilometraje registrado en cualquier tipo de evento ──
-            $maxKm = RegistroVehicular::where('vehiculo_id', $v->id)
-                ->max('kilometraje') ?? 0;
+            $maxKm = max(
+                (float) ($v->kilometraje_actual ?? 0),
+                (float) (RegistroVehicular::where('vehiculo_id', $v->id)->max('kilometraje') ?? 0)
+            );
 
             // ── Último correctivo ─────────────────────────────────────────
             $ultimoCorrectivo = RegistroVehicular::where('vehiculo_id', $v->id)

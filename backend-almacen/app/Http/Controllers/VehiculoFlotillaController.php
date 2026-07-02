@@ -15,6 +15,8 @@ class VehiculoFlotillaController extends Controller
 
         $vehiculos = VehiculoFlotilla::query()
             ->with([
+                'responsable:id,nombre_completo,numero_gafete',
+                'ubicacion:id,nombre,tipo',
                 'registrosVehiculares' => fn ($query) => $query->latest('fecha')->limit(1),
                 'gastosExtra',
             ])
@@ -23,6 +25,10 @@ class VehiculoFlotillaController extends Controller
                 $query->where(function ($inner) use ($term) {
                     $inner->where('codigo_vehiculo', 'ilike', $term)
                         ->orWhere('nombre', 'ilike', $term)
+                        ->orWhere('marca', 'ilike', $term)
+                        ->orWhere('modelo', 'ilike', $term)
+                        ->orWhere('niv', 'ilike', $term)
+                        ->orWhere('numero_serie', 'ilike', $term)
                         ->orWhere('placa', 'ilike', $term)
                         ->orWhere('placas', 'ilike', $term)
                         ->orWhere('estado', 'ilike', $term);
@@ -41,7 +47,7 @@ class VehiculoFlotillaController extends Controller
 
         $vehiculos = VehiculoFlotilla::whereIn('estado', ['ACTIVO', 'DISPONIBLE'])
             ->orderBy('nombre')
-            ->get(['id', 'codigo_vehiculo', 'nombre', 'placa', 'placas', 'modelo', 'numero', 'kilometraje_actual']);
+            ->get(['id', 'codigo_vehiculo', 'nombre', 'placa', 'placas', 'modelo', 'numero', 'kilometraje_actual', 'estado']);
 
         return response()->json($vehiculos);
     }
@@ -65,6 +71,7 @@ class VehiculoFlotillaController extends Controller
             'poliza_seguro' => 'nullable|string|max:100',
             'grupo' => 'nullable|string|max:100',
             'certificacion' => 'nullable|string|max:100',
+            'estado' => 'nullable|in:ACTIVO,INACTIVO,DISPONIBLE,ASIGNADO,EN_MANTENIMIENTO,BAJA,SINIESTRADO',
             'responsable_id' => 'nullable|integer|exists:empleados,id',
             'ubicacion_id' => 'nullable|integer|exists:ubicaciones,id',
             'kilometraje_actual' => 'nullable|numeric|min:0',
@@ -74,7 +81,7 @@ class VehiculoFlotillaController extends Controller
         $validated = $this->sanitize($validated);
         $validated['codigo_vehiculo'] = $validated['codigo_vehiculo'] ?? $this->generarCodigoVehiculo();
         $validated['niv'] = $validated['niv'] ?? $validated['numero_serie'];
-        $validated['estado'] = 'DISPONIBLE';
+        $validated['estado'] = $validated['estado'] ?? 'DISPONIBLE';
         $validated['kilometraje_actual'] = $validated['kilometraje_actual'] ?? 0;
         $validated['placas'] = $validated['placa'];
 
@@ -89,6 +96,8 @@ class VehiculoFlotillaController extends Controller
     public function show(int $id): JsonResponse
     {
         $vehiculo = VehiculoFlotilla::with([
+            'responsable:id,nombre_completo,numero_gafete',
+            'ubicacion:id,nombre,tipo',
             'registrosVehiculares.usuario:id,nombre_usuario',
             'gastosExtra.usuario:id,nombre_usuario',
             'bitacoraViajes',
@@ -114,7 +123,7 @@ class VehiculoFlotillaController extends Controller
             'niv' => 'nullable|string|max:120',
             'tipo_vehiculo' => 'nullable|string|max:100',
             'numero' => 'nullable|string|max:50',
-            'estado_gps' => 'nullable|string|max:50',
+            'estado_gps' => 'nullable|string|max:100',
             'placa' => 'sometimes|string|max:30|unique:vehiculos_flotilla,placa,' . $id,
             'poliza_seguro' => 'nullable|string|max:100',
             'grupo' => 'nullable|string|max:100',
@@ -146,6 +155,7 @@ class VehiculoFlotillaController extends Controller
         $this->authorize('delete', $vehiculo);
 
         $vehiculo->update(['estado' => 'BAJA']);
+        $vehiculo->delete();
 
         return response()->json([
             'mensaje' => 'Vehiculo dado de baja de la flotilla',
@@ -154,7 +164,7 @@ class VehiculoFlotillaController extends Controller
 
     private function sanitize(array $data): array
     {
-        foreach (['codigo_vehiculo', 'nombre', 'marca', 'modelo', 'numero_serie', 'niv', 'tipo_vehiculo', 'numero', 'estado_gps', 'placa', 'poliza_seguro', 'grupo', 'certificacion', 'observaciones'] as $field) {
+        foreach (['codigo_vehiculo', 'nombre', 'marca', 'modelo', 'numero_serie', 'niv', 'tipo_vehiculo', 'numero', 'estado_gps', 'placa', 'poliza_seguro', 'grupo', 'certificacion', 'observaciones', 'estado'] as $field) {
             if (array_key_exists($field, $data) && $data[$field] !== null) {
                 $data[$field] = strip_tags(trim((string) $data[$field]));
             }
