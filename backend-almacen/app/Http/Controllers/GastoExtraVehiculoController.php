@@ -16,7 +16,10 @@ class GastoExtraVehiculoController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = GastoExtraVehiculo::with('vehiculo:id,nombre,placas,placa,numero')
+        $query = GastoExtraVehiculo::with([
+                'vehiculo:id,nombre,placas,placa,numero',
+                'usuario:id,nombre_usuario',
+            ])
             ->orderBy('fecha', 'desc');
 
         // Filtro opcional por vehículo

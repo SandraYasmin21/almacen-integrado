@@ -197,10 +197,11 @@ export default function RegistroMantenimientos() {
             usuario: registro.usuario?.nombre_usuario || '-',
             notas: registro.notas || '-',
             evidencia_path: registro.evidencia_path || null,
+            evidencia: registro.evidencia_path ? 'Con evidencia' : 'Sin evidencia',
         }))
         .filter((registro) => !filters.vehiculo.length || filters.vehiculo.includes(registro.vehiculo))
         .filter((registro) => !filters.tipo.length || filters.tipo.some((tipo) => tipo.toLowerCase() === registro.tipo))
-        .filter((registro) => !debouncedSearch || [registro.vehiculo, registro.detalle, registro.subtipo]
+        .filter((registro) => !debouncedSearch || [registro.vehiculo, registro.detalle, registro.subtipo, registro.notas, registro.usuario]
             .some((value) => value.toLowerCase().includes(debouncedSearch.toLowerCase())));
 
     const totalRegistros = allRegistros.length;
@@ -294,35 +295,43 @@ export default function RegistroMantenimientos() {
 
             {/* Table */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-lg hover:shadow-slate-200/60 mb-4">
-                <div className="w-full overflow-hidden">
-                    <table className="w-full table-fixed text-left text-sm text-slate-600">
+                <div className="w-full overflow-x-auto">
+                    <table className="min-w-[1450px] w-full text-left text-sm text-slate-600">
                         <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
                             <tr>
-                                <th className="w-[14%] px-4 py-4 font-semibold">Vehiculo</th>
-                                <th className="w-[12%] px-4 py-4 font-semibold">Fecha</th>
-                                <th className="w-[13%] px-4 py-4 text-center font-semibold">Tipo</th>
-                                <th className="w-[27%] px-4 py-4 font-semibold">Detalle / Falla</th>
-                                <th className="w-[11%] px-4 py-4 font-semibold">Kilometraje</th>
-                                <th className="w-[9%] px-4 py-4 text-right font-semibold">Costo</th>
-                                <th className="w-[9%] px-4 py-4 font-semibold">Subtipo</th>
-                                <th className="w-[9%] px-4 py-4 font-semibold">Capturó</th>
-                                <th className="w-[5%] px-4 py-4"></th>
+                                <th className="px-4 py-4 font-semibold">Vehículo</th>
+                                <th className="px-4 py-4 font-semibold">Fecha</th>
+                                <th className="px-4 py-4 text-center font-semibold">Tipo</th>
+                                <th className="px-4 py-4 font-semibold">Detalle / Falla</th>
+                                <th className="px-4 py-4 font-semibold">Kilometraje</th>
+                                <th className="px-4 py-4 text-right font-semibold">Costo</th>
+                                <th className="px-4 py-4 font-semibold">Subtipo</th>
+                                <th className="px-4 py-4 font-semibold">Notas</th>
+                                <th className="px-4 py-4 font-semibold">Evidencia</th>
+                                <th className="px-4 py-4 font-semibold">Capturó</th>
+                                <th className="px-4 py-4"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-slate-700">
                             {paginatedRegistros.map((r) => (
                                 <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="truncate px-4 py-4 font-bold text-slate-800">{r.vehiculo}</td>
-                                    <td className="truncate px-4 py-4 text-slate-500">{r.fecha}</td>
+                                    <td className="min-w-44 px-4 py-4 font-bold text-slate-800">{r.vehiculo}</td>
+                                    <td className="min-w-28 px-4 py-4 text-slate-500">{r.fecha}</td>
                                     <td className="px-4 py-4 text-center">
                                         <StatusBadge status={r.tipo} size="compact" />
                                     </td>
-                                    <td className="truncate px-4 py-4 text-slate-600">{r.detalle}</td>
-                                    <td className="truncate px-4 py-4 font-mono text-xs font-semibold text-slate-800">{r.km}</td>
-                                    <td className="truncate px-4 py-4 text-right font-bold text-slate-800">{r.costo}</td>
-                                    <td className="truncate px-4 py-4 text-slate-500">{r.subtipo}</td>
-                                    <td className="truncate px-4 py-4 text-slate-500">{r.usuario}</td>
-                                    <td className="px-4 py-4 text-right">
+                                    <td className="min-w-72 px-4 py-4 text-slate-600"><p className="line-clamp-2">{r.detalle}</p></td>
+                                    <td className="min-w-32 px-4 py-4 font-mono text-xs font-semibold text-slate-800">{r.km}</td>
+                                    <td className="min-w-28 px-4 py-4 text-right font-bold text-slate-800">{r.costo}</td>
+                                    <td className="min-w-40 px-4 py-4 text-slate-500">{r.subtipo}</td>
+                                    <td className="min-w-64 px-4 py-4 text-slate-500"><p className="line-clamp-2">{r.notas}</p></td>
+                                    <td className="min-w-32 px-4 py-4">
+                                        <span className={`rounded-full px-2 py-1 text-xs font-bold ${r.evidencia_path ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                                            {r.evidencia}
+                                        </span>
+                                    </td>
+                                    <td className="min-w-32 px-4 py-4 text-slate-500">{r.usuario}</td>
+                                    <td className="min-w-24 px-4 py-4 text-right">
                                         <button 
                                             onClick={() => handleEditRegistro(r)}
                                             className="px-3 py-1.5 border border-blue-200 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-50 transition-colors"
@@ -333,7 +342,7 @@ export default function RegistroMantenimientos() {
                                 </tr>
                             ))}
                             {paginatedRegistros.length === 0 && (
-                                <tr><td colSpan={9} className="px-4 py-10 text-center text-slate-500">No hay mantenimientos registrados.</td></tr>
+                                <tr><td colSpan={11} className="px-4 py-10 text-center text-slate-500">No hay mantenimientos registrados.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -479,7 +488,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-6">
                     <motion.div 
                         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
@@ -489,9 +498,9 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="bg-white rounded-2xl shadow-xl w-full max-w-xl relative z-10 overflow-hidden"
+                        className="relative z-10 my-auto flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
                     >
-                        <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                        <div className="flex shrink-0 items-start justify-between border-b border-slate-100 p-6">
                             <div>
                                 <h2 className="text-xl font-bold text-slate-800">
                                     {editData ? "Detalle de mantenimiento" : "Nuevo registro de mantenimiento"}
@@ -502,7 +511,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit(onSubmit)} className="p-6">
+                        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto p-6">
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-1">Vehiculo <span className="text-red-500">*</span></label>
@@ -521,7 +530,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                                     {errors.vehiculo_id && <p className="text-red-500 text-xs mt-1">{errors.vehiculo_id.message}</p>}
                                 </div>
                                 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <label className="block text-sm font-semibold text-slate-700 mb-1">Fecha <span className="text-red-500">*</span></label>
                                         <Controller
@@ -541,7 +550,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
 
                                     <div>
                                         <label className="block text-sm font-semibold text-slate-700 mb-1">Tipo <span className="text-red-500">*</span></label>
-                                        <div className="flex gap-2">
+                                        <div className="flex flex-wrap gap-2">
                                             {[
                                                 { id: 'preventivo', label: 'Preventivo', activeClass: 'bg-emerald-500 text-white border-transparent' },
                                                 { id: 'correctivo', label: 'Correctivo', activeClass: 'bg-rose-50 text-rose-600 border-rose-300' },
@@ -575,7 +584,7 @@ function NuevoRegistroModal({ isOpen, onClose, editData, vehiculos, onSaved }) {
                                     {errors.detalle_falla && <p className="text-red-500 text-xs mt-1">{errors.detalle_falla.message}</p>}
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <label className="block text-sm font-semibold text-slate-700 mb-1">Kilometraje <span className="text-red-500">*</span></label>
                                         <input 

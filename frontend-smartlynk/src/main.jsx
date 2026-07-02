@@ -37,6 +37,7 @@ import CatalogoVehiculos from './pages/flotilla/CatalogoVehiculos';
 import RegistroMantenimientos from './pages/flotilla/RegistroMantenimientos';
 import GastosExtra from './pages/flotilla/GastosExtra';
 import BitacoraViajes from './pages/flotilla/BitacoraViajes';
+import BitacoraPerfilVehicular from './pages/flotilla/BitacoraPerfilVehicular';
 import DashboardFlotilla from './pages/flotilla/DashboardFlotilla';
 import Kilometraje from './pages/flotilla/Kilometraje';
 
@@ -119,6 +120,7 @@ function App() {
           <Route path="/flotilla/mantenimientos" element={<RegistroMantenimientos />} />
           <Route path="/flotilla/gastos" element={<GastosExtra />} />
           <Route path="/flotilla/bitacora" element={<BitacoraViajes />} />
+          <Route path="/flotilla/bitacora-perfil" element={<BitacoraPerfilVehicular />} />
           <Route path="/flotilla/dashboard" element={<DashboardFlotilla />} />
           <Route path="/flotilla/kilometraje" element={<Kilometraje />} />
         </Route>
